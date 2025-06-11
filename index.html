@@ -215,6 +215,8 @@
                 transferListRight: document.getElementById('transfer-list-right'),
                 transferToRightBtn: document.getElementById('transfer-to-right-btn'),
                 transferToLeftBtn: document.getElementById('transfer-to-left-btn'),
+                transferSearchLeft: document.getElementById('transfer-search-left'),
+                transferSearchRight: document.getElementById('transfer-search-right'),
                 modalBackdrop: document.getElementById('modal-backdrop'),
                 modalTitle: document.getElementById('modal-title'),
                 modalContent: document.getElementById('modal-content'),
@@ -354,7 +356,7 @@
             function parseM3u(fileName, content) { if (!content.startsWith('#EXTM3U')) { showToast('فایلی M3U نادروستە.', 'error'); return; } const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels: [] }; const lines = content.split(/[\r\n]+/); for (let i = 0; i < lines.length; i++) { if (lines[i].startsWith('#EXTINF:')) { const infoLine = lines[i]; const urlLine = lines[i + 1] || ''; if (urlLine && (urlLine.startsWith('http') || urlLine.startsWith('rtmp'))) { const name = (infoLine.match(/,(.*)/) || [])[1]?.trim() || 'Unknown'; const logo = (infoLine.match(/tvg-logo="([^"]*)"/) || [])[1] || ''; const group = (infoLine.match(/group-title="([^"]*)"/) || [])[1] || ''; newPlaylist.channels.push({ id: Date.now() + i, name, url: urlLine.trim(), logo, group }); } } } playlists.push(newPlaylist); saveAndRenderPlaylists(); }
             function handleConfirm() { if (currentMode === 'saveToDropbox') { const selectedPlaylistId = document.getElementById('playlist-select-dropbox').value; saveToDropbox(Number(selectedPlaylistId)); } else if (currentMode === 'addPlaylist') { const name = document.getElementById('playlist-name').value; if (name) { playlists.push({ id: Date.now(), name: name, channels: [] }); saveAndRenderPlaylists(); } } else if (currentMode === 'editPlaylist') { const playlist = playlists.find(p => p.id === currentEditingId); const name = document.getElementById('playlist-name').value; if (playlist && name) { playlist.name = name; saveAndRenderPlaylists(); } } else if (currentMode === 'addChannel' || currentMode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const name = document.getElementById('channel-name').value; const url = document.getElementById('channel-url').value; if (playlist && name && url) { const channelData = { name, url, logo: document.getElementById('channel-logo').value, group: document.getElementById('channel-group').value }; if (currentMode === 'addChannel') { playlist.channels.push({ id: Date.now(), ...channelData }); } else { const channel = playlist.channels.find(c => c.id === currentEditingId); if (channel) Object.assign(channel, channelData); } saveAndRenderChannels(); } } hideModal(); }
             function saveAndRenderPlaylists() { savePlaylists(); renderPlaylists(DOMElements.playlistSearch.value); }
-            function saveAndRenderChannels() { savePlaylists(); renderChannels(currentPlaylistId, DOMElements.channelSearch.value); }
+            function saveAndRenderChannels() { savePlaylists(); renderChannels(currentPlaylistId); }
             function hideModal() { DOMElements.modalBackdrop.classList.add('hidden'); }
             function showModal(mode, id = null) { currentMode = mode; currentEditingId = id; DOMElements.modalBackdrop.classList.remove('hidden'); DOMElements.modalConfirmBtn.textContent = "پشتڕاستکردنەوە"; let formHtml = ''; if (mode === 'addPlaylist' || mode === 'editPlaylist') { const playlist = mode === 'editPlaylist' ? playlists.find(p => p.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addPlaylist' ? 'دروستکردنی لیستی نوێ' : 'دەستکاری ناوی لیست'; formHtml = `<div class="form-group"><label for="playlist-name">ناوی لیست</label><input type="text" id="playlist-name" value="${playlist ? playlist.name : ''}" placeholder="بۆ نموونە: کەناڵە کوردییەکان"></div>`; } else if (mode === 'addChannel' || mode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const channel = mode === 'editChannel' ? playlist.channels.find(c => c.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addChannel' ? 'زیادکردنی کەناڵی نوێ' : 'دەستکاری کەناڵ'; formHtml = `<div class="form-group"><label for="channel-name">ناوی کەناڵ</label><input type="text" id="channel-name" value="${channel ? channel.name : ''}" placeholder="بۆ نموونە: NRT HD"></div> <div class="form-group"><label for="channel-url">لینکی کەناڵ (URL)</label><input type="text" id="channel-url" value="${channel ? channel.url : ''}" placeholder="http://.../live.m3u8"></div> <div class="form-group"><label for="channel-logo">لینکی لۆگۆ</label><input type="text" id="channel-logo" value="${channel ? channel.logo : ''}" placeholder="http://.../logo.png"></div> <div class="form-group"><label for="channel-group">ناوی گرووپ</label><input type="text" id="channel-group" value="${channel ? channel.group : ''}" placeholder="بۆ نموونە: هەواڵ"></div>`; } DOMElements.modalContent.innerHTML = formHtml; const input = DOMElements.modalContent.querySelector('input'); if (input) setTimeout(() => input.focus(), 100); }
             function showConfirmModal(message, callback) { DOMElements.confirmModalMessage.textContent = message; confirmCallback = callback; DOMElements.confirmModalBackdrop.classList.remove('hidden'); }
@@ -372,6 +374,7 @@
                 loadPlaylists();
                 renderPlaylists();
 
+                // All event listeners
                 DOMElements.dropboxConnectBtn.addEventListener('click', connectToDropbox);
                 DOMElements.dropboxDisconnectBtn.addEventListener('click', disconnectFromDropbox);
                 DOMElements.dropboxFetchBtn.addEventListener('click', loadFromDropbox);
@@ -385,6 +388,7 @@
                 
                 DOMElements.addPlaylistBtn.addEventListener('click', () => showModal('addPlaylist'));
                 DOMElements.importPlaylistBtn.addEventListener('click', () => { const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = '.m3u,.m3u8'; fileInput.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = event => parseM3u(file.name, event.target.result); reader.readAsText(file); }; fileInput.click(); });
+                
                 DOMElements.transferBtn.addEventListener('click', initTransferScreen);
                 
                 DOMElements.playlistList.addEventListener('click', (e) => {
