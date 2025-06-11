@@ -241,7 +241,6 @@
 
             const DROPBOX_CLIENT_ID = 'qq6qyxnq5jr7ei1';
             const REDIRECT_URI = window.location.href.split('#')[0];
-            const M3U_FILE_PATH_IN_DROPBOX = '/playlist.m3u';
             let dropboxToken = localStorage.getItem('dropboxToken');
 
             async function handleDropboxError(response) {
@@ -276,41 +275,88 @@
                 updateDropboxUI();
             }
 
-            async function loadFromDropbox() {
+            async function listDropboxFiles() {
+                if (!dropboxToken) return [];
+                try {
+                    const response = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${dropboxToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ path: '', recursive: false, include_media_info: false, include_deleted: false, include_has_explicit_shared_members: false })
+                    });
+                    if (!response.ok) await handleDropboxError(response);
+                    const data = await response.json();
+                    return data.entries.filter(entry => entry['.tag'] === 'file' && (entry.name.endsWith('.m3u') || entry.name.endsWith('.m3u8')));
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    return [];
+                }
+            }
+
+            async function showFetchFromDropboxModal() {
+                if (!dropboxToken) { showToast('تکایە سەرەتا پەیوەست بە.', 'error'); return; }
+                currentMode = 'fetchFromDropbox';
+                DOMElements.modalBackdrop.classList.remove('hidden');
+                DOMElements.modalTitle.textContent = "هێنان لە درۆپبۆکس";
+                DOMElements.modalContent.innerHTML = '<p style="text-align:center;">خەریکی بارکردنی لیستە...</p>';
+                DOMElements.modalConfirmBtn.textContent = "هێنانی فایل";
+                DOMElements.modalConfirmBtn.disabled = true;
+
+                try {
+                    const files = await listDropboxFiles();
+                    if (files.length === 0) {
+                        DOMElements.modalContent.innerHTML = '<p style="text-align:center;">هیچ فایلێکی .m3u یان .m3u8 لەناو فۆڵدەری سەرەکی درۆپبۆکسەکەت نەدۆزرایەوە.</p>';
+                        return;
+                    }
+                    DOMElements.modalConfirmBtn.disabled = false;
+                    let options = files.map(file => `<option value="${file.path_display}">${file.name}</option>`).join('');
+                    DOMElements.modalContent.innerHTML = `<div class="form-group"><label for="file-select-dropbox">فایلێک هەڵبژێرە</label><select id="file-select-dropbox">${options}</select></div>`;
+                } catch (error) {
+                    DOMElements.modalContent.innerHTML = `<p style="text-align:center; color: var(--danger-color);">${error.message}</p>`;
+                }
+            }
+
+            async function loadFromDropbox(filePath) {
                 if (!dropboxToken) return;
-                showToast('خەریکی هێنانی فایلە لە درۆپبۆکس...', 'success');
+                if (!filePath) { showToast('هیچ فایلێک دیاری نەکراوە بۆ هێنان.', 'error'); return; }
+                showToast(`خەریکی هێنانی ${filePath}ـە لە درۆپبۆکس...`, 'success');
                 try {
                     const response = await fetch('https://content.dropboxapi.com/2/files/download', {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${dropboxToken}`, 'Dropbox-API-Arg': JSON.stringify({ path: M3U_FILE_PATH_IN_DROPBOX }) }
+                        headers: { 'Authorization': `Bearer ${dropboxToken}`, 'Dropbox-API-Arg': JSON.stringify({ path: filePath }) }
                     });
                     if (!response.ok) await handleDropboxError(response);
                     const fileContent = await response.text();
-                    parseM3u('لیستی-درۆپبۆکس', fileContent);
+                    const fileName = filePath.split('/').pop();
+                    parseM3u(fileName, fileContent);
+                    showToast(`فایلی ${fileName} بە سەرکەوتوویی هێنرا.`, 'success');
                 } catch (error) {
                     showToast(error.message, 'error');
                 }
             }
-
-            async function saveToDropbox(playlistId) {
+            
+            async function saveToDropbox(playlistId, filePath) {
                 if (!dropboxToken) { showToast('تکایە سەرەتا پەیوەست بە.', 'error'); return; }
+                if (!filePath || !filePath.startsWith('/')) { showToast('ناوی فایل نادروستە، پێویستە بە / دەست پێبکات.', 'error'); return; }
                 const playlist = playlists.find(p => p.id === playlistId);
                 if (!playlist) { showToast("لیستی دیاریکراو نەدۆزرایەوە.", "error"); return; }
-                showToast(`خەریکی پاشەکەوتکردنی "${playlist.name}"ـە...`, 'success');
+                showToast(`خەریکی پاشەکەوتکردنی "${playlist.name}"ـە بۆ ${filePath}...`, 'success');
                 const m3uContent = generateM3uContent(playlist);
                 try {
                     const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${dropboxToken}`,
-                            'Dropbox-API-Arg': JSON.stringify({ path: M3U_FILE_PATH_IN_DROPBOX, mode: 'overwrite' }),
+                            'Dropbox-API-Arg': JSON.stringify({ path: filePath, mode: 'overwrite' }),
                             'Content-Type': 'application/octet-stream'
                         },
                         body: m3uContent
                     });
                     if (!response.ok) await handleDropboxError(response);
-                    const responseData = await response.json();
-                    showToast(`"${playlist.name}" لە درۆپبۆکس پاشەکەوت کرا`, 'success');
+                    await response.json();
+                    showToast(`"${playlist.name}" لە ${filePath} پاشەکەوت کرا`, 'success');
                 } catch (error) {
                     showToast(error.message, 'error');
                 }
@@ -322,7 +368,15 @@
                 DOMElements.modalBackdrop.classList.remove('hidden');
                 DOMElements.modalTitle.textContent = "پاشەکەوتکردن لە درۆپبۆکس";
                 let options = playlists.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                DOMElements.modalContent.innerHTML = `<div class="form-group"><label for="playlist-select-dropbox">کام لیست پاشەکەوت بکەم؟</label><select id="playlist-select-dropbox">${options}</select></div>`;
+                DOMElements.modalContent.innerHTML = `
+                    <div class="form-group">
+                        <label for="playlist-select-dropbox">کام لیست پاشەکەوت بکەم؟</label>
+                        <select id="playlist-select-dropbox">${options}</select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dropbox-filename">ناوی فایل لە درۆپبۆکس (بۆ نمونە: /my-list.m3u)</label>
+                        <input type="text" id="dropbox-filename" value="/playlist.m3u" placeholder="/channels.m3u">
+                    </div>`;
                 DOMElements.modalConfirmBtn.textContent = "پاشەکەوتی بکە";
             }
 
@@ -352,9 +406,53 @@
             function savePlaylists() { localStorage.setItem('m3u-playlists-v2', JSON.stringify(playlists)); }
             function loadPlaylists() { const storedPlaylists = localStorage.getItem('m3u-playlists-v2'); if (storedPlaylists) { playlists = JSON.parse(storedPlaylists); } }
             function renderPlaylists(filter = '') { const list = DOMElements.playlistList; list.innerHTML = ''; const fragment = document.createDocumentFragment(); const filteredPlaylists = playlists.filter(p => p.name.toLowerCase().includes(filter.toLowerCase())); if (filteredPlaylists.length === 0) { list.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ لیستێک نییە. یەکێکی نوێ دروست بکە!</p>`; return; } filteredPlaylists.forEach((playlist, index) => { const li = document.createElement('li'); li.className = 'item-card'; li.style.animationDelay = `${index * 50}ms`; li.dataset.playlistId = playlist.id; li.innerHTML = `<div class="item-info" data-action="open"><i class="fas fa-list-ul" style="color: var(--primary-color); margin-left:8px;"></i><div><h3>${playlist.name}</h3><p>${playlist.channels.length} کەناڵ</p></div></div><div class="item-actions"><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; fragment.appendChild(li); }); list.appendChild(fragment); }
-            function generateM3uContent(playlist) { let m3uContent = "#EXTM3U\n"; playlist.channels.forEach(ch => { const logo = ch.logo ? ` tvg-logo="${ch.logo}"` : ''; const group = ch.group ? ` group-title="${ch.group}"` : ''; m3uContent += `#EXTINF:-1${logo},${ch.name}\n`; m3uContent += `${ch.url}\n`; }); return m3uContent; }
+            function generateM3uContent(playlist) { let m3uContent = "#EXTM3U\n"; playlist.channels.forEach(ch => { const logo = ch.logo ? ` tvg-logo="${ch.logo}"` : ''; const group = ch.group ? ` group-title="${ch.group}"` : ''; m3uContent += `#EXTINF:-1${logo}${group},${ch.name}\n`; m3uContent += `${ch.url}\n`; }); return m3uContent; }
             function parseM3u(fileName, content) { if (!content.startsWith('#EXTM3U')) { showToast('فایلی M3U نادروستە.', 'error'); return; } const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels: [] }; const lines = content.split(/[\r\n]+/); for (let i = 0; i < lines.length; i++) { if (lines[i].startsWith('#EXTINF:')) { const infoLine = lines[i]; const urlLine = lines[i + 1] || ''; if (urlLine && (urlLine.startsWith('http') || urlLine.startsWith('rtmp'))) { const name = (infoLine.match(/,(.*)/) || [])[1]?.trim() || 'Unknown'; const logo = (infoLine.match(/tvg-logo="([^"]*)"/) || [])[1] || ''; const group = (infoLine.match(/group-title="([^"]*)"/) || [])[1] || ''; newPlaylist.channels.push({ id: Date.now() + i, name, url: urlLine.trim(), logo, group }); } } } playlists.push(newPlaylist); saveAndRenderPlaylists(); }
-            function handleConfirm() { if (currentMode === 'saveToDropbox') { const selectedPlaylistId = document.getElementById('playlist-select-dropbox').value; saveToDropbox(Number(selectedPlaylistId)); } else if (currentMode === 'addPlaylist') { const name = document.getElementById('playlist-name').value; if (name) { playlists.push({ id: Date.now(), name: name, channels: [] }); saveAndRenderPlaylists(); } } else if (currentMode === 'editPlaylist') { const playlist = playlists.find(p => p.id === currentEditingId); const name = document.getElementById('playlist-name').value; if (playlist && name) { playlist.name = name; saveAndRenderPlaylists(); } } else if (currentMode === 'addChannel' || currentMode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const name = document.getElementById('channel-name').value; const url = document.getElementById('channel-url').value; if (playlist && name && url) { const channelData = { name, url, logo: document.getElementById('channel-logo').value, group: document.getElementById('channel-group').value }; if (currentMode === 'addChannel') { playlist.channels.push({ id: Date.now(), ...channelData }); } else { const channel = playlist.channels.find(c => c.id === currentEditingId); if (channel) Object.assign(channel, channelData); } saveAndRenderChannels(); } } hideModal(); }
+            
+            function handleConfirm() {
+                let shouldHideModal = true;
+                if (currentMode === 'saveToDropbox') {
+                    const selectedPlaylistId = document.getElementById('playlist-select-dropbox').value;
+                    const dropboxFileName = document.getElementById('dropbox-filename').value;
+                    if (dropboxFileName && dropboxFileName.startsWith('/')) {
+                        saveToDropbox(Number(selectedPlaylistId), dropboxFileName);
+                    } else {
+                        showToast("ناوی فایل نادروستە. پێویستە بە / دەست پێبکات.", "error");
+                        shouldHideModal = false;
+                    }
+                } else if (currentMode === 'fetchFromDropbox') {
+                    const selectElement = document.getElementById('file-select-dropbox');
+                    if (selectElement) {
+                        const selectedFilePath = selectElement.value;
+                        loadFromDropbox(selectedFilePath);
+                    }
+                } else if (currentMode === 'addPlaylist') { 
+                    const name = document.getElementById('playlist-name').value; 
+                    if (name) { playlists.push({ id: Date.now(), name: name, channels: [] }); saveAndRenderPlaylists(); } 
+                } else if (currentMode === 'editPlaylist') { 
+                    const playlist = playlists.find(p => p.id === currentEditingId); 
+                    const name = document.getElementById('playlist-name').value; 
+                    if (playlist && name) { playlist.name = name; saveAndRenderPlaylists(); } 
+                } else if (currentMode === 'addChannel' || currentMode === 'editChannel') { 
+                    const playlist = playlists.find(p => p.id === currentPlaylistId); 
+                    const name = document.getElementById('channel-name').value; 
+                    const url = document.getElementById('channel-url').value; 
+                    if (playlist && name && url) { 
+                        const channelData = { name, url, logo: document.getElementById('channel-logo').value, group: document.getElementById('channel-group').value }; 
+                        if (currentMode === 'addChannel') { 
+                            playlist.channels.push({ id: Date.now(), ...channelData }); 
+                        } else { 
+                            const channel = playlist.channels.find(c => c.id === currentEditingId); 
+                            if (channel) Object.assign(channel, channelData); 
+                        } 
+                        saveAndRenderChannels(); 
+                    } 
+                } 
+                if (shouldHideModal) {
+                    hideModal();
+                }
+            }
+
             function saveAndRenderPlaylists() { savePlaylists(); renderPlaylists(DOMElements.playlistSearch.value); }
             function saveAndRenderChannels() { savePlaylists(); renderChannels(currentPlaylistId); }
             function hideModal() { DOMElements.modalBackdrop.classList.add('hidden'); }
@@ -377,7 +475,7 @@
                 // All event listeners
                 DOMElements.dropboxConnectBtn.addEventListener('click', connectToDropbox);
                 DOMElements.dropboxDisconnectBtn.addEventListener('click', disconnectFromDropbox);
-                DOMElements.dropboxFetchBtn.addEventListener('click', loadFromDropbox);
+                DOMElements.dropboxFetchBtn.addEventListener('click', showFetchFromDropboxModal);
                 DOMElements.dropboxSaveBtn.addEventListener('click', showSaveToDropboxModal);
 
                 DOMElements.modalConfirmBtn.addEventListener('click', handleConfirm);
