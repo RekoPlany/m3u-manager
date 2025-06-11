@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>M3U Manager Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap');
+
+        :root {
+            --primary-color: #00A8E8;
+            --secondary-color: #007EA7;
+            --success-color: #00CECB;
+            --danger-color: #FF5E5B;
+            --light-color: #F7F7FF;
+            --dark-color: #191923;
+            --bg-color-start: #0B0A0F;
+            --bg-color-end: #191923;
+            --glass-bg: rgba(40, 42, 54, 0.6);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.2);
+            --border-radius: 12px;
+            --font-family: 'Tajawal', sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { 
+            font-family: var(--font-family); 
+            color: var(--light-color); 
+            background-color: var(--dark-color);
+            overflow: hidden; 
+            position: relative; 
+            height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .background-gradient { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: linear-gradient(45deg, var(--bg-color-start), var(--bg-color-end), #272A3D, #322A4E); 
+            background-size: 400% 400%; 
+            animation: gradient-animation 20s ease infinite; 
+            z-index: -1; 
+        }
+        @keyframes gradient-animation { 
+            0% { background-position: 0% 50%; } 
+            50% { background-position: 100% 50%; } 
+            100% { background-position: 0% 50%; } 
+        }
+
+        .container { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem; height: calc(100vh - 4rem); display: flex; flex-direction: column; }
+
+        .screen { 
+            display: none; 
+            flex-direction: column; 
+            height: 100%; 
+            animation: screen-fade-in 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        @keyframes screen-fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .screen.active { display: flex; }
+
+        /* === Headers === */
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .logo-title i {
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+        .logo-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .main-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+        #channels-screen header, #transfer-screen header {
+            display: flex;
+            align-items: center;
+            position: relative;
+            padding-bottom: 1.2rem;
+            margin-bottom: 1.2rem;
+        }
+        #channels-screen h1, #transfer-screen h1 { flex-grow: 1; text-align: center; font-size: 18px; }
+
+        /* === Buttons === */
+        .btn { 
+            padding: 10px 20px; 
+            border: 1px solid transparent; 
+            border-radius: var(--border-radius); 
+            color: white; 
+            font-family: inherit; 
+            font-size: 14px; 
+            font-weight: 500;
+            cursor: pointer; 
+            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center;
+            gap: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+        .btn:active { transform: translateY(-1px) scale(1); }
+        .btn i { font-size: 14px; }
+        .btn.primary { background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); }
+        .btn.success { background: linear-gradient(45deg, #00B4AE, var(--success-color)); }
+        .btn.danger { background: linear-gradient(45deg, #f06, var(--danger-color)); }
+        .btn.back-btn { background: transparent; box-shadow: none; font-size: 22px; padding: 0 10px; color: var(--light-color); position: absolute; right: 0; }
+        .btn.danger-outline, .btn.success-outline { background: transparent; color: var(--light-color); border: 1px solid var(--border-color); box-shadow: none; text-shadow: none; }
+        .btn.danger-outline:hover { background: var(--danger-color); border-color: var(--danger-color); color: white; }
+        .btn.success-outline:hover { background: var(--success-color); border-color: var(--success-color); color: white; }
+
+        /* === Main Content & Cards === */
+        main { flex-grow: 1; overflow-y: auto; padding-right: 10px; }
+        main::-webkit-scrollbar { width: 6px; }
+        main::-webkit-scrollbar-track { background: transparent; }
+        main::-webkit-scrollbar-thumb { background-color: var(--primary-color); border-radius: 10px; }
+
+        .search-bar { position: relative; margin-bottom: 1.5rem; }
+        .search-bar input { 
+            width: 100%; padding: 12px 20px 12px 45px; 
+            border-radius: var(--border-radius); border: 1px solid var(--border-color); 
+            background-color: var(--glass-bg); color: var(--light-color); 
+            font-size: 15px; backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        .search-bar input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.3); }
+        .search-bar .fa-search { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--light-color); }
+
+        .item-list { list-style: none; padding: 0; }
+        .item-card { 
+            background: var(--glass-bg); backdrop-filter: blur(12px); 
+            border-radius: var(--border-radius); border: 1px solid var(--border-color); 
+            padding: 15px; margin-bottom: 1rem; 
+            display: flex; justify-content: space-between; align-items: center; 
+            box-shadow: var(--shadow); 
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            animation: slide-up 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        @keyframes slide-up { to { opacity: 1; transform: translateY(0); } }
+        .item-card:hover { transform: translateY(-2px) scale(1.02); border-color: var(--primary-color); }
+        .item-info { display: flex; align-items: center; gap: 15px; overflow: hidden; flex-grow: 1; cursor: pointer; }
+        .item-info .channel-logo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background-color: var(--dark-color); flex-shrink: 0; border: 2px solid var(--border-color); }
+        .item-info div { overflow: hidden; }
+        .item-info h3 { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-info p { font-size: 12px; color: rgba(236, 240, 241, 0.6); }
+
+        .item-actions { display: flex; gap: 5px; flex-shrink: 0; }
+        .item-actions button { background: transparent; border: none; color: rgba(247, 247, 255, 0.7); font-size: 16px; cursor: pointer; padding: 8px; transition: all 0.3s ease; }
+        .item-actions button:hover { transform: scale(1.2); }
+        .item-actions .delete-btn:hover { color: var(--danger-color); }
+        .item-actions .edit-btn:hover { color: var(--success-color); }
+        .item-actions .play-btn:hover { color: var(--primary-color); }
+
+        /* === نوێ: ستایلی گرووپی کەناڵەکان (Accordion) === */
+        .channel-group {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            backdrop-filter: blur(12px);
+            transition: border-color 0.3s ease;
+        }
+        .channel-group[open] {
+            border-color: var(--primary-color);
+        }
+        .channel-group summary {
+            padding: 1rem;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary-color);
+            cursor: pointer;
+            list-style: none; /* Hide default marker */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .channel-group summary::-webkit-details-marker { display: none; }
+        .channel-group summary::before {
+            content: '\f078'; /* fa-chevron-down */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            margin-left: 10px;
+            transition: transform 0.3s ease;
+        }
+        .channel-group[open] > summary::before {
+            transform: rotate(180deg);
+        }
+        .group-title-text {
+            flex-grow: 1;
+        }
+        .group-delete-btn {
+            background: transparent;
+            border: none;
+            color: rgba(247, 247, 255, 0.5);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px 10px;
+            transition: color 0.3s ease;
+            flex-shrink: 0;
+        }
+        .group-delete-btn:hover {
+            color: var(--danger-color);
+        }
+        .channel-group .item-list {
+            padding: 0 1rem 1rem 1rem;
+        }
+        .channel-group .item-card {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+        .channel-group .item-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--secondary-color);
+        }
+
+        /* === ستایلەکانی لاپەڕەی گواستنەوە === */
+        .transfer-container { display: flex; gap: 1rem; align-items: flex-start; }
+        .transfer-column { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .transfer-column .search-bar { margin-bottom: 1rem; }
+        .transfer-playlist-select {
+            width: 100%; padding: 12px; margin-bottom: 1rem; border-radius: var(--border-radius);
+            border: 1px solid var(--border-color); background-color: var(--glass-bg);
+            color: var(--light-color); font-size: 15px; font-family: inherit; backdrop-filter: blur(10px);
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f7f7ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat; background-position: left 1rem center; background-size: 1em; padding-left: 2.5rem;
+        }
+        .transfer-list { overflow-y: auto; height: calc(100vh - 24rem); padding: 5px; }
+        .transfer-channel-item {
+            background: transparent; border-radius: 8px; padding: 8px 12px;
+            margin-bottom: 8px; display: flex; align-items: center; gap: 12px;
+            border: 1px solid var(--border-color); cursor: default;
+        }
+        .transfer-channel-item:hover { background-color: rgba(255,255,255,0.05); }
+        .transfer-channel-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary-color); flex-shrink: 0; cursor: pointer; }
+        .transfer-channel-item label { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; cursor: pointer; }
+        .transfer-controls { display: flex; flex-direction: column; gap: 1rem; align-items: center; justify-content: center; padding-top: 8rem; }
+        .transfer-controls .btn { padding: 10px; width: 45px; height: 45px; font-size: 18px; }
+
+        /* === Modals, Toast, Player, etc. (unchanged) === */
+        .modal-container { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0, 0, 0, 0.7); 
+            display: flex; justify-content: center; align-items: center; 
+            z-index: 1000; opacity: 0; pointer-events: none; 
+            transition: opacity 0.3s ease;
+        }
+        .modal-container:not(.hidden) { opacity: 1; pointer-events: all; }
+        .modal-glass { 
+            background: var(--glass-bg); backdrop-filter: blur(20px); 
+            border: 1px solid var(--border-color); border-radius: var(--border-radius); 
+            box-shadow: var(--shadow); padding: 2rem; width: 90%; max-width: 450px; 
+            transform: scale(0.9) translateY(20px); opacity: 0;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        .modal-container:not(.hidden) .modal-glass { transform: scale(1) translateY(0); opacity: 1; }
+        .modal-glass h2 { margin-bottom: 1.5rem; text-align: center; font-size: 20px; font-weight: 700; }
+        #modal-content .form-group { margin-bottom: 1.2rem; }
+        #modal-content label { display: block; margin-bottom: 0.5rem; font-size: 14px; color: rgba(247, 247, 255, 0.8); }
+        #modal-content input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: var(--light-color); font-size: 14px; transition: all 0.3s ease; }
+        #modal-content input:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.3); }
+        .modal-actions { margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem; }
+        #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; flex-direction: column-reverse; align-items: center; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: var(--border-radius); color: white; min-width: 250px; text-align: center; background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--border-color); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; animation: toast-in 0.5s cubic-bezier(0.25, 1, 0.5, 1); }
+        @keyframes toast-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toast-out { to { opacity: 0; transform: translateY(20px); } }
+        .toast.success { border-left: 4px solid var(--success-color); }
+        .toast.error { border-left: 4px solid var(--danger-color); }
+        .toast i { font-size: 18px; }
+        .confirm-modal p{margin:1rem 0 2rem 0;font-size:16px;line-height:1.6}.confirm-modal .modal-actions{justify-content:center}#video-player-modal{z-index:1001}.video-player-content{position:relative;width:90%;max-width:800px;background:#000;border-radius:var(--border-radius);overflow:hidden}#video-player{width:100%;height:auto;display:block}.close-player-btn{position:absolute;top:15px;left:15px;background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:35px;height:35px;font-size:18px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:background .3s ease}.close-player-btn:hover{background:var(--danger-color)}.player-loader{position:absolute;top:50%;left:50%;border:4px solid var(--glass-bg);border-top:4px solid var(--primary-color);border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;z-index:11;display:none;transform:translate(-50%,-50%)}@keyframes spin{0%{transform:translate(-50%,-50%) rotate(0)}100%{transform:translate(-50%,-50%) rotate(360deg)}}.item-card.dragging{opacity:.5;background:var(--primary-color)}
+    </style>
+</head>
+<body>
+
+    <div class="background-gradient"></div>
+
+    <div id="toast-container"></div>
+
+    <div class="container">
+        <!-- لاپەڕەی سەرەکی - لیستی فایلەکان -->
+        <div id="home-screen" class="screen active">
+            <header class="main-header">
+                <div class="logo-title">
+                    <i class="fas fa-layer-group"></i>
+                    <h1>M3U Manager Pro</h1>
+                </div>
+                <div class="main-actions">
+                    <button id="transfer-btn" class="btn primary"><i class="fas fa-exchange-alt"></i> </button>
+                    <button id="import-playlist-btn" class="btn primary"><i class="fas fa-upload"></i> </button>
+                    <button id="add-playlist-btn" class="btn success"><i class="fas fa-plus"></i> </button>
+                </div>
+            </header>
+            <main>
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="playlist-search" placeholder="گەڕان...">
+                </div>
+                <ul id="playlist-list" class="item-list">
+                    <!-- لیستەکان لێرە زیاد دەکرێن -->
+                </ul>
+            </main>
+        </div>
+
+        <!-- لاپەڕەی کەناڵەکان -->
+        <div id="channels-screen" class="screen">
+            <header>
+                <button id="back-to-home-btn" class="btn back-btn"><i class="fas fa-arrow-right"></i></button>
+                <h1 id="playlist-title-header"></h1>
+                <div class="actions">
+                    <button id="export-playlist-btn" class="btn primary"><i class="fas fa-download"></i></button>
+                    <button id="add-channel-btn" class="btn success"><i class="fas fa-plus"></i></button>
+                </div>
+            </header>
+            <main>
+                 <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="channel-search" placeholder="گەڕان بۆ کەناڵێک...">
+                </div>
+                <div id="channel-list-container">
+                    <!-- کەناڵەکان لێرە زیاد دەکرێن -->
+                </div>
+            </main>
+        </div>
+
+        <!-- لاپەڕەی گواستنەوەی کەناڵ -->
+        <div id="transfer-screen" class="screen">
+            <header>
+                <button id="back-to-home-from-transfer-btn" class="btn back-btn"><i class="fas fa-arrow-right"></i></button>
+                <h1>گواستنەوەی کەناڵەکان</h1>
+            </header>
+            <main class="transfer-container">
+                <!-- ستوونی چەپ -->
+                <div class="transfer-column">
+                    <select id="transfer-select-left" class="transfer-playlist-select">
+                        <option value=""> هەڵبژێرە</option>
+                    </select>
+                    <!-- نوێ: زیادکردنی باڕی گەڕان بۆ لیستی چەپ -->
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="transfer-search-left" placeholder="گەڕان...">
+                    </div>
+                    <ul id="transfer-list-left" class="item-list transfer-list"></ul>
+                </div>
+
+                <!-- کۆنترۆڵی گواستنەوە -->
+                <div class="transfer-controls">
+                    <button id="transfer-to-right-btn" class="btn primary"><i class="fas fa-arrow-left"></i></button>
+                    <button id="transfer-to-left-btn" class="btn primary"><i class="fas fa-arrow-right"></i></button>
+                </div>
+
+                <!-- ستوونی ڕاست -->
+                <div class="transfer-column">
+                    <select id="transfer-select-right" class="transfer-playlist-select">
+                        <option value="">هەڵبژێرە</option>
+                    </select>
+                    <!-- نوێ: زیادکردنی باڕی گەڕان بۆ لیستی ڕاست -->
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="transfer-search-right" placeholder="گەڕان...">
+                    </div>
+                    <ul id="transfer-list-right" class="item-list transfer-list"></ul>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- مۆداڵەکان -->
+    <div id="modal-backdrop" class="modal-container hidden">
+        <div class="modal-glass">
+            <h2 id="modal-title"></h2>
+            <div id="modal-content"></div>
+            <div class="modal-actions">
+                <button id="modal-cancel-btn" class="btn danger-outline">پاشگەزبوونەوە</button>
+                <button id="modal-confirm-btn" class="btn success">پشتڕاستکردنەوە</button>
+            </div>
+        </div>
+    </div>
+    <div id="confirm-modal-backdrop" class="modal-container hidden">
+        <div class="modal-glass confirm-modal">
+            <h2 id="confirm-modal-title">دڵنیایی سڕینەوە</h2>
+            <p id="confirm-modal-message"></p>
+            <div class="modal-actions">
+                <button id="confirm-cancel-btn" class="btn success-outline">نەخێر</button>
+                <button id="confirm-ok-btn" class="btn danger">بەڵێ، بیسڕەوە</button>
+            </div>
+        </div>
+    </div>
+    <div id="video-player-modal" class="modal-container hidden">
+        <div class="video-player-content">
+            <button class="close-player-btn"><i class="fas fa-times"></i></button>
+            <div class="player-loader"></div>
+            <video id="video-player" controls autoplay></video>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // === DOM Elements (unchanged) ===
+            const getElements = () => ({
+                homeScreen: document.getElementById('home-screen'),
+                channelsScreen: document.getElementById('channels-screen'),
+                transferScreen: document.getElementById('transfer-screen'),
+                playlistList: document.getElementById('playlist-list'),
+                addPlaylistBtn: document.getElementById('add-playlist-btn'),
+                importPlaylistBtn: document.getElementById('import-playlist-btn'),
+                playlistSearch: document.getElementById('playlist-search'),
+                transferBtn: document.getElementById('transfer-btn'),
+                channelListContainer: document.getElementById('channel-list-container'),
+                backToHomeBtn: document.getElementById('back-to-home-btn'),
+                playlistTitleHeader: document.getElementById('playlist-title-header'),
+                addChannelBtn: document.getElementById('add-channel-btn'),
+                exportPlaylistBtn: document.getElementById('export-playlist-btn'),
+                channelSearch: document.getElementById('channel-search'),
+                backToHomeFromTransferBtn: document.getElementById('back-to-home-from-transfer-btn'),
+                transferSelectLeft: document.getElementById('transfer-select-left'),
+                transferSelectRight: document.getElementById('transfer-select-right'),
+                transferListLeft: document.getElementById('transfer-list-left'),
+                transferListRight: document.getElementById('transfer-list-right'),
+                transferToRightBtn: document.getElementById('transfer-to-right-btn'),
+                transferToLeftBtn: document.getElementById('transfer-to-left-btn'),
+                transferSearchLeft: document.getElementById('transfer-search-left'),
+                transferSearchRight: document.getElementById('transfer-search-right'),
+                modalBackdrop: document.getElementById('modal-backdrop'),
+                modalTitle: document.getElementById('modal-title'),
+                modalContent: document.getElementById('modal-content'),
+                modalCancelBtn: document.getElementById('modal-cancel-btn'),
+                modalConfirmBtn: document.getElementById('modal-confirm-btn'),
+                confirmModalBackdrop: document.getElementById('confirm-modal-backdrop'),
+                confirmModalMessage: document.getElementById('confirm-modal-message'),
+                confirmCancelBtn: document.getElementById('confirm-cancel-btn'),
+                confirmOkBtn: document.getElementById('confirm-ok-btn'),
+                videoPlayerModal: document.getElementById('video-player-modal'),
+                videoPlayer: document.getElementById('video-player'),
+                closePlayerBtn: document.querySelector('.close-player-btn'),
+                playerLoader: document.querySelector('.player-loader'),
+                toastContainer: document.getElementById('toast-container'),
+            });
+
+            const DOMElements = getElements();
+            
+            // === Constants & State (unchanged) ===
+            const DEFAULT_LOGO_URL = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VjZjBmMSI+PHBhdGggZD0iTTIxIDNIM2MtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmg1djJoOHYtMmE1YzEuMSAwIDEuOTktLjkgMS45OS0yTDIzIDVjMC0xLjE C45LTItMi0yem0wIDE0SDNWNWgxOHYxMnoiLz48L3N2Zz4=';
+            let playlists = [];
+            let currentPlaylistId = null;
+            let currentEditingId = null; 
+            let currentMode = ''; 
+            let confirmCallback = null;
+            let hlsInstance;
+
+            // ... Utility Functions, Data Persistence, renderPlaylists (unchanged) ...
+
+            // === نوێکراوە: Render Channels Function ===
+            function renderChannels(playlistId, filter = '') {
+                currentPlaylistId = playlistId;
+                const playlist = playlists.find(p => p.id === playlistId);
+                if (!playlist) {
+                     showScreen(DOMElements.homeScreen);
+                     return;
+                }
+
+                DOMElements.playlistTitleHeader.textContent = playlist.name;
+                const container = DOMElements.channelListContainer;
+                container.innerHTML = '';
+                const fragment = document.createDocumentFragment();
+                
+                const channelsToDisplay = playlist.channels.filter(c => 
+                    c.name.toLowerCase().includes(filter.toLowerCase())
+                );
+                
+                // Group channels
+                const groups = {};
+                channelsToDisplay.forEach(channel => {
+                    const groupTitle = channel.group || 'کەناڵە گشتییەکان';
+                    if (!groups[groupTitle]) { groups[groupTitle] = []; }
+                    groups[groupTitle].push(channel);
+                });
+
+                if (Object.keys(groups).length === 0 && filter) {
+                     container.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ کەناڵێک نەدۆزرایەوە.</p>`;
+                     return;
+                }
+
+                // Create accordion for each group
+                Object.keys(groups).sort().forEach((groupTitle, groupIndex) => {
+                    const details = document.createElement('details');
+                    details.className = 'channel-group';
+                    // Open the first group by default
+                    if (groupIndex === 0) {
+                        details.open = true;
+                    }
+
+                    const summary = document.createElement('summary');
+                    summary.innerHTML = `
+                        <span class="group-title-text">${groupTitle} (${groups[groupTitle].length})</span>
+                        <button class="group-delete-btn" data-group-title="${groupTitle}" title="سڕینەوەی گرووپ"><i class="fas fa-trash"></i></button>
+                    `;
+
+                    const ul = document.createElement('ul');
+                    ul.className = 'item-list';
+                    groups[groupTitle].forEach((channel, index) => {
+                        const li = document.createElement('li');
+                        li.className = 'item-card';
+                        li.dataset.channelId = channel.id;
+                        li.innerHTML = `
+                            <div class="item-info">
+                                <img src="${channel.logo || DEFAULT_LOGO_URL}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='${DEFAULT_LOGO_URL}';">
+                                <div><h3>${channel.name}</h3></div>
+                            </div>
+                            <div class="item-actions">
+                                <button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button>
+                                <button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button>
+                                <button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button>
+                            </div>`;
+                        ul.appendChild(li);
+                    });
+
+                    details.appendChild(summary);
+                    details.appendChild(ul);
+                    fragment.appendChild(details);
+                });
+                container.appendChild(fragment);
+            }
+            
+            // === نوێکراوە: Channel List Container Event Listener ===
+            DOMElements.channelListContainer.addEventListener('click', (e) => {
+                const individualCard = e.target.closest('.item-card');
+                const groupDeleteBtn = e.target.closest('.group-delete-btn');
+
+                const playlist = playlists.find(p => p.id === currentPlaylistId);
+                if (!playlist) return;
+
+                // Logic for deleting a whole group
+                if (groupDeleteBtn) {
+                    e.preventDefault(); // Prevent details from toggling
+                    const groupTitle = groupDeleteBtn.dataset.groupTitle;
+                    showConfirmModal(`دڵنیایت لە سڕینەوەی گرووپی "${groupTitle}" و هەموو کەناڵەکانی؟`, () => {
+                        const originalCount = playlist.channels.length;
+                        playlist.channels = playlist.channels.filter(ch => (ch.group || 'کەناڵە گشتییەکان') !== groupTitle);
+                        const newCount = playlist.channels.length;
+                        const deletedCount = originalCount - newCount;
+                        saveAndRenderChannels();
+                        showToast(`گرووپی "${groupTitle}" و (${deletedCount}) کەناڵ سڕانەوە.`);
+                    });
+                    return;
+                }
+
+                // Logic for individual channel actions
+                if (individualCard) {
+                    const channelId = Number(individualCard.dataset.channelId);
+                    const channel = playlist.channels.find(c => c.id === channelId);
+                    if (!channel) return;
+
+                    if (e.target.closest('.play-btn')) {
+                        openVideoPlayer(channel.url);
+                    } else if (e.target.closest('.edit-btn')) {
+                        showModal('editChannel', channelId);
+                    } else if (e.target.closest('.delete-btn')) {
+                        playlist.channels = playlist.channels.filter(c => c.id !== channelId);
+                        saveAndRenderChannels();
+                        showToast(`کەناڵی "${channel.name}" سڕایەوە.`);
+                    }
+                }
+            });
+
+            // ... All other functions and event listeners remain the same ...
+            // (copy the rest of the script.js from the previous answer to ensure completeness)
+            
+            // The following code is just a placeholder for the rest of the unchanged script
+            function showToast(message, type = 'success') { const toast = document.createElement('div'); toast.className = `toast ${type}`; const icon = type === 'success' ? 'fa-check-circle' : 'fa-times-circle'; toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`; DOMElements.toastContainer.prepend(toast); setTimeout(() => { toast.style.animation = 'toast-out 0.5s cubic-bezier(0.75, 0, 0.25, 1) forwards'; toast.addEventListener('animationend', () => toast.remove()); }, 3000); }
+            function debounce(func, delay = 300) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => { func.apply(this, args); }, delay); }; }
+            function savePlaylists() { localStorage.setItem('m3u-playlists-v2', JSON.stringify(playlists)); }
+            function loadPlaylists() { const storedPlaylists = localStorage.getItem('m3u-playlists-v2'); if (storedPlaylists) { playlists = JSON.parse(storedPlaylists); } renderPlaylists(); }
+            function renderPlaylists(filter = '') { const list = DOMElements.playlistList; list.innerHTML = ''; const fragment = document.createDocumentFragment(); const filteredPlaylists = playlists.filter(p => p.name.toLowerCase().includes(filter.toLowerCase())); if (filteredPlaylists.length === 0) { list.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ لیستێک نییە. یەکێکی نوێ دروست بکە!</p>`; return; } filteredPlaylists.forEach((playlist, index) => { const li = document.createElement('li'); li.className = 'item-card'; li.style.animationDelay = `${index * 50}ms`; li.dataset.playlistId = playlist.id; li.innerHTML = `<div class="item-info" data-action="open"><i class="fas fa-list-ul" style="color: var(--primary-color); margin-left:8px;"></i><div><h3>${playlist.name}</h3><p>${playlist.channels.length} کەناڵ</p></div></div><div class="item-actions"><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; fragment.appendChild(li); }); list.appendChild(fragment); }
+            function openVideoPlayer(url) { const { videoPlayerModal, videoPlayer, playerLoader } = DOMElements; playerLoader.style.display = 'block'; videoPlayer.style.display = 'none'; videoPlayerModal.classList.remove('hidden'); if (Hls.isSupported() && (url.includes('.m3u8'))) { if (hlsInstance) { hlsInstance.destroy(); } hlsInstance = new Hls(); hlsInstance.loadSource(url); hlsInstance.attachMedia(videoPlayer); hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => { playerLoader.style.display = 'none'; videoPlayer.style.display = 'block'; videoPlayer.play(); }); hlsInstance.on(Hls.Events.ERROR, (event, data) => { if (data.fatal) { showToast("کێشەیەک لە کارپێکردنی کەناڵەکە ڕوویدا.", "error"); closeVideoPlayer(); } }); } else { videoPlayer.src = url; videoPlayer.addEventListener('canplay', () => { playerLoader.style.display = 'none'; videoPlayer.style.display = 'block'; videoPlayer.play(); }, { once: true }); videoPlayer.addEventListener('error', () => { showToast("کێشەیەک لە کارپێکردنی کەناڵەکە ڕوویدا.", "error"); closeVideoPlayer(); }, { once: true }); } }
+            function closeVideoPlayer() { DOMElements.videoPlayer.pause(); DOMElements.videoPlayer.src = ''; if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; } DOMElements.playerLoader.style.display = 'none'; DOMElements.videoPlayerModal.classList.add('hidden'); }
+            function parseM3u(fileName, content) { if (!content.startsWith('#EXTM3U')) { showToast('فایلی M3U نادروستە.', 'error'); return; } const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels: [] }; const lines = content.split(/[\r\n]+/); for (let i = 0; i < lines.length; i++) { if (lines[i].startsWith('#EXTINF:')) { const infoLine = lines[i]; const urlLine = lines[i + 1] || ''; if (urlLine && (urlLine.startsWith('http') || urlLine.startsWith('rtmp'))) { const name = (infoLine.match(/,(.*)/) || [])[1]?.trim() || 'Unknown'; const logo = (infoLine.match(/tvg-logo="([^"]*)"/) || [])[1] || ''; const group = (infoLine.match(/group-title="([^"]*)"/) || [])[1] || ''; newPlaylist.channels.push({ id: Date.now() + i, name, url: urlLine.trim(), logo, group }); } } } playlists.push(newPlaylist); saveAndRenderPlaylists(); showToast(`لیستی "${newPlaylist.name}" بەسەرکەوتوویی زیادکرا.`); }
+            function generateM3uContent(playlist) { let m3uContent = "#EXTM3U\n"; playlist.channels.forEach(ch => { const logo = ch.logo ? ` tvg-logo="${ch.logo}"` : ''; const group = ch.group ? ` group-title="${ch.group}"` : ''; m3uContent += `#EXTINF:-1${logo}${group},${ch.name}\n`; m3uContent += `${ch.url}\n`; }); return m3uContent; }
+            function showScreen(screen) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); screen.classList.add('active'); }
+            function showModal(mode, id = null) { currentMode = mode; currentEditingId = id; DOMElements.modalBackdrop.classList.remove('hidden'); let formHtml = ''; if (mode === 'addPlaylist' || mode === 'editPlaylist') { const playlist = mode === 'editPlaylist' ? playlists.find(p => p.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addPlaylist' ? 'دروستکردنی لیستی نوێ' : 'دەستکاری ناوی لیست'; formHtml = `<div class="form-group"><label for="playlist-name">ناوی لیست</label><input type="text" id="playlist-name" value="${playlist ? playlist.name : ''}" placeholder="بۆ نموونە: کەناڵە کوردییەکان"></div>`; } else if (mode === 'addChannel' || mode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const channel = mode === 'editChannel' ? playlist.channels.find(c => c.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addChannel' ? 'زیادکردنی کەناڵی نوێ' : 'دەستکاری کەناڵ'; formHtml = `<div class="form-group"><label for="channel-name">ناوی کەناڵ</label><input type="text" id="channel-name" value="${channel ? channel.name : ''}" placeholder="بۆ نموونە: NRT HD"></div> <div class="form-group"><label for="channel-url">لینکی کەناڵ (URL)</label><input type="text" id="channel-url" value="${channel ? channel.url : ''}" placeholder="http://.../live.m3u8"></div> <div class="form-group"><label for="channel-logo">لینکی لۆگۆ</label><input type="text" id="channel-logo" value="${channel ? channel.logo : ''}" placeholder="http://.../logo.png"></div> <div class="form-group"><label for="channel-group">ناوی گرووپ</label><input type="text" id="channel-group" value="${channel ? channel.group : ''}" placeholder="بۆ نموونە: هەواڵ"></div>`; } DOMElements.modalContent.innerHTML = formHtml; const input = DOMElements.modalContent.querySelector('input'); if (input) setTimeout(() => input.focus(), 100); }
+            function hideModal() { DOMElements.modalBackdrop.classList.add('hidden'); }
+            function showConfirmModal(message, callback) { DOMElements.confirmModalMessage.textContent = message; confirmCallback = callback; DOMElements.confirmModalBackdrop.classList.remove('hidden'); }
+            function hideConfirmModal() { DOMElements.confirmModalBackdrop.classList.add('hidden'); confirmCallback = null; }
+            function handleConfirm() { if (currentMode === 'addPlaylist') { const name = document.getElementById('playlist-name').value; if (name) { playlists.push({ id: Date.now(), name: name, channels: [] }); saveAndRenderPlaylists(); showToast(`لیستی "${name}" دروستکرا.`); } } else if (currentMode === 'editPlaylist') { const playlist = playlists.find(p => p.id === currentEditingId); const name = document.getElementById('playlist-name').value; if (playlist && name) { playlist.name = name; saveAndRenderPlaylists(); showToast(`ناو گۆڕدرا بۆ "${name}".`); } } else if (currentMode === 'addChannel' || currentMode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const name = document.getElementById('channel-name').value; const url = document.getElementById('channel-url').value; if (playlist && name && url) { const channelData = { name, url, logo: document.getElementById('channel-logo').value, group: document.getElementById('channel-group').value }; if (currentMode === 'addChannel') { playlist.channels.push({ id: Date.now(), ...channelData }); showToast(`کەناڵی "${name}" زیادکرا.`); } else { const channel = playlist.channels.find(c => c.id === currentEditingId); if (channel) Object.assign(channel, channelData); showToast(`کەناڵی "${name}" نوێکرایەوە.`); } saveAndRenderChannels(); } else { showToast('تکایە ناو و لینکی کەناڵ پڕبکەرەوە.', 'error'); } } hideModal(); }
+            function saveAndRenderPlaylists() { savePlaylists(); renderPlaylists(DOMElements.playlistSearch.value); }
+            function saveAndRenderChannels() { savePlaylists(); renderChannels(currentPlaylistId, DOMElements.channelSearch.value); }
+            function initTransferScreen() { populateTransferDropdowns(); DOMElements.transferListLeft.innerHTML = ''; DOMElements.transferListRight.innerHTML = ''; DOMElements.transferSearchLeft.value = ''; DOMElements.transferSearchRight.value = ''; showScreen(DOMElements.transferScreen); }
+            function populateTransferDropdowns() { const selects = [DOMElements.transferSelectLeft, DOMElements.transferSelectRight]; selects.forEach(select => { const currentValue = select.value; select.innerHTML = '<option value="">فایلێک هەڵبژێرە...</option>'; playlists.forEach(p => { const option = document.createElement('option'); option.value = p.id; option.textContent = p.name; select.appendChild(option); }); select.value = currentValue; }); }
+            function renderTransferChannels(listElement, playlistId, filter = '') { listElement.innerHTML = ''; if (!playlistId) return; const playlist = playlists.find(p => p.id === Number(playlistId)); if (!playlist) return; const fragment = document.createDocumentFragment(); const channelsToRender = playlist.channels.filter(ch => ch.name.toLowerCase().includes(filter.toLowerCase())); channelsToRender.forEach(channel => { const li = document.createElement('li'); li.className = 'transfer-channel-item'; li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}">${channel.name}</label>`; fragment.appendChild(li); }); listElement.appendChild(fragment); }
+            function handleChannelTransfer(sourceListEl, sourceSelectEl, destSelectEl) { const sourcePlaylistId = Number(sourceSelectEl.value); const destPlaylistId = Number(destSelectEl.value); if (!sourcePlaylistId || !destPlaylistId || sourcePlaylistId === destPlaylistId) { showToast("تکایە دوو فایلی جیاواز هەڵبژێرە.", "error"); return; } const sourcePlaylist = playlists.find(p => p.id === sourcePlaylistId); const destPlaylist = playlists.find(p => p.id === destPlaylistId); const selectedCheckboxes = sourceListEl.querySelectorAll('input[type="checkbox"]:checked'); if (selectedCheckboxes.length === 0) { showToast("هیچ کەناڵێک دیاری نەکراوە.", "error"); return; } let transferredCount = 0; const destChannelUrls = new Set(destPlaylist.channels.map(ch => ch.url)); selectedCheckboxes.forEach(checkbox => { const channelId = Number(checkbox.dataset.channelId); const channelToCopy = sourcePlaylist.channels.find(ch => ch.id === channelId); if (channelToCopy && !destChannelUrls.has(channelToCopy.url)) { const newChannel = { ...channelToCopy, id: Date.now() + transferredCount }; destPlaylist.channels.push(newChannel); destChannelUrls.add(newChannel.url); transferredCount++; } }); if (transferredCount > 0) { savePlaylists(); showToast(`${transferredCount} کەناڵ بەسەرکەوتوویی گواسترایەوە.`, "success"); const destListEl = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferListLeft : DOMElements.transferListRight; const destSearchInput = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight; renderTransferChannels(destListEl, destPlaylistId, destSearchInput.value); selectedCheckboxes.forEach(cb => cb.checked = false); } else { showToast("کەناڵەکان پێشتر هەبوون یان کێشەیەک ڕوویدا.", "error"); } }
+            const goHome = () => { currentPlaylistId = null; if (DOMElements.channelSearch) DOMElements.channelSearch.value = ''; showScreen(DOMElements.homeScreen); renderPlaylists(); };
+            DOMElements.backToHomeBtn.addEventListener('click', goHome);
+            DOMElements.backToHomeFromTransferBtn.addEventListener('click', goHome);
+            DOMElements.addPlaylistBtn.addEventListener('click', () => showModal('addPlaylist'));
+            DOMElements.playlistList.addEventListener('click', (e) => { const card = e.target.closest('.item-card'); if (!card) return; const id = Number(card.dataset.playlistId); if (e.target.closest('.edit-btn')) { showModal('editPlaylist', id); } else if (e.target.closest('.delete-btn')) { const playlist = playlists.find(p => p.id === id); showConfirmModal(`دڵنیایت لە سڕینەوەی لیستی "${playlist.name}"؟`, () => { playlists = playlists.filter(p => p.id !== id); saveAndRenderPlaylists(); showToast(`لیستی "${playlist.name}" سڕایەوە.`); }); } else if (e.target.closest('[data-action="open"]')) { renderChannels(id); showScreen(DOMElements.channelsScreen); } });
+            DOMElements.addChannelBtn.addEventListener('click', () => showModal('addChannel'));
+            DOMElements.modalCancelBtn.addEventListener('click', hideModal);
+            DOMElements.modalConfirmBtn.addEventListener('click', handleConfirm);
+            DOMElements.confirmOkBtn.addEventListener('click', () => { if (confirmCallback) confirmCallback(); hideConfirmModal(); });
+            DOMElements.confirmCancelBtn.addEventListener('click', hideConfirmModal);
+            DOMElements.playlistSearch.addEventListener('input', debounce(e => renderPlaylists(e.target.value), 300));
+            DOMElements.channelSearch.addEventListener('input', debounce(e => renderChannels(currentPlaylistId, e.target.value), 300));
+            DOMElements.importPlaylistBtn.addEventListener('click', () => { const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = '.m3u,.m3u8'; fileInput.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = event => parseM3u(file.name, event.target.result); reader.readAsText(file); }; fileInput.click(); });
+            DOMElements.exportPlaylistBtn.addEventListener('click', () => { const playlist = playlists.find(p => p.id === currentPlaylistId); if (!playlist) return; const m3uContent = generateM3uContent(playlist); const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; const safeFileName = playlist.name.replace(/[^a-z0-9_.-]/gi, '_'); a.download = `${safeFileName}.m3u`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); showToast("فایلەکە بەسەرکەوتوویی هەناردەکرا."); });
+            DOMElements.closePlayerBtn.addEventListener('click', closeVideoPlayer);
+            DOMElements.transferBtn.addEventListener('click', initTransferScreen);
+            DOMElements.transferSelectLeft.addEventListener('change', e => { DOMElements.transferSearchLeft.value = ''; renderTransferChannels(DOMElements.transferListLeft, e.target.value); });
+            DOMElements.transferSelectRight.addEventListener('change', e => { DOMElements.transferSearchRight.value = ''; renderTransferChannels(DOMElements.transferListRight, e.target.value); });
+            DOMElements.transferSearchLeft.addEventListener('input', debounce(e => { renderTransferChannels(DOMElements.transferListLeft, DOMElements.transferSelectLeft.value, e.target.value); }, 300));
+            DOMElements.transferSearchRight.addEventListener('input', debounce(e => { renderTransferChannels(DOMElements.transferListRight, DOMElements.transferSelectRight.value, e.target.value); }, 300));
+            DOMElements.transferToRightBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListLeft, DOMElements.transferSelectLeft, DOMElements.transferSelectRight));
+            DOMElements.transferToLeftBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListRight, DOMElements.transferSelectRight, DOMElements.transferSelectLeft));
+            loadPlaylists();
+        });
+    </script>
+</body>
+</html>
