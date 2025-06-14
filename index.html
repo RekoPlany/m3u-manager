@@ -722,6 +722,81 @@
             function initTransferScreen() { populateTransferDropdowns(); DOMElements.transferListLeft.innerHTML = ''; DOMElements.transferListRight.innerHTML = ''; DOMElements.transferSearchLeft.value = ''; DOMElements.transferSearchRight.value = ''; DOMElements.selectAllLeft.checked = false; DOMElements.selectAllRight.checked = false; showScreen(DOMElements.transferScreen); }
             function populateTransferDropdowns() { const selects = [DOMElements.transferSelectLeft, DOMElements.transferSelectRight]; selects.forEach(select => { const currentValue = select.value; select.innerHTML = '<option value="">هەڵبژێرە...</option>'; playlists.forEach(p => { const option = document.createElement('option'); option.value = p.id; option.textContent = p.name; select.appendChild(option); }); select.value = currentValue; }); }
             
+            function renderTransferList(playlistId, listElement, searchFilter = '') {
+                listElement.innerHTML = '';
+                if (!playlistId) return;
+                const playlist = playlists.find(p => p.id === Number(playlistId));
+                if (!playlist) return;
+                const fragment = document.createDocumentFragment();
+                const channelsToDisplay = playlist.channels.filter(c => c.name.toLowerCase().includes(searchFilter.toLowerCase()));
+                channelsToDisplay.forEach(channel => {
+                    const li = document.createElement('li');
+                    li.className = 'transfer-channel-item';
+                    li.dataset.channelId = channel.id;
+                    li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}">${channel.name}</label>`;
+                    fragment.appendChild(li);
+                });
+                listElement.appendChild(fragment);
+            }
+
+            function transferChannels(fromSelectEl, toSelectEl, fromListEl) {
+                const fromPlaylistId = Number(fromSelectEl.value);
+                const toPlaylistId = Number(toSelectEl.value);
+
+                if (!fromPlaylistId || !toPlaylistId) {
+                    showToast('تکایە هەردوو لیستی سەرچاوە و مەبەست هەڵبژێرە.', 'error');
+                    return;
+                }
+                if (fromPlaylistId === toPlaylistId) {
+                    showToast('ناتوانیت کەناڵەکان بۆ هەمان لیست بگوازیتەوە.', 'error');
+                    return;
+                }
+
+                const fromPlaylist = playlists.find(p => p.id === fromPlaylistId);
+                const toPlaylist = playlists.find(p => p.id === toPlaylistId);
+
+                if (!fromPlaylist || !toPlaylist) {
+                    showToast('یەکێک لە لیستەکان نەدۆزرایەوە!', 'error');
+                    return;
+                }
+
+                const checkedCheckboxes = fromListEl.querySelectorAll('input[type="checkbox"]:checked');
+                if (checkedCheckboxes.length === 0) {
+                    showToast('هیچ کەناڵێک بۆ گواستنەوە دیاری نەکراوە.', 'error');
+                    return;
+                }
+
+                let transferredCount = 0;
+                const channelIdsToTransfer = Array.from(checkedCheckboxes).map(cb => Number(cb.dataset.channelId));
+                
+                const channelsToTransfer = fromPlaylist.channels.filter(ch => channelIdsToTransfer.includes(ch.id));
+
+                channelsToTransfer.forEach(sourceChannel => {
+                    const existingChannelIndex = toPlaylist.channels.findIndex(destChannel => 
+                        destChannel.name.toLowerCase() === sourceChannel.name.toLowerCase() || destChannel.url === sourceChannel.url
+                    );
+
+                    if (existingChannelIndex !== -1) {
+                        const existingChannel = toPlaylist.channels[existingChannelIndex];
+                        toPlaylist.channels[existingChannelIndex] = { ...sourceChannel, id: existingChannel.id };
+                    } else {
+                        toPlaylist.channels.push({ ...sourceChannel, id: Date.now() + Math.random() });
+                    }
+                    transferredCount++;
+                });
+
+                fromPlaylist.channels = fromPlaylist.channels.filter(ch => !channelIdsToTransfer.includes(ch.id));
+                
+                savePlaylists();
+                showToast(`${transferredCount} کەناڵ بە سەرکەوتوویی گواسترایەوە.`, 'success');
+
+                renderTransferList(DOMElements.transferSelectLeft.value, DOMElements.transferListLeft, DOMElements.transferSearchLeft.value);
+                renderTransferList(DOMElements.transferSelectRight.value, DOMElements.transferListRight, DOMElements.transferSearchRight.value);
+                
+                DOMElements.selectAllLeft.checked = false;
+                DOMElements.selectAllRight.checked = false;
+            }
+
             // =================================================================
             // =================== PRO TOOL (FILE 2) LOGIC =====================
             // =================================================================
@@ -1079,6 +1154,45 @@
                 DOMElements.importPlaylistBtn.addEventListener('click', () => { const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = '.m3u,.m3u8'; fileInput.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = event => parseM3u(file.name, event.target.result); reader.readAsText(file); }; fileInput.click(); });
                 
                 DOMElements.transferBtn.addEventListener('click', initTransferScreen);
+                
+                DOMElements.transferSelectLeft.addEventListener('change', (e) => {
+                    renderTransferList(e.target.value, DOMElements.transferListLeft, DOMElements.transferSearchLeft.value);
+                    DOMElements.selectAllLeft.checked = false;
+                });
+
+                DOMElements.transferSelectRight.addEventListener('change', (e) => {
+                    renderTransferList(e.target.value, DOMElements.transferListRight, DOMElements.transferSearchRight.value);
+                    DOMElements.selectAllRight.checked = false;
+                });
+
+                DOMElements.transferSearchLeft.addEventListener('input', debounce(e => {
+                    renderTransferList(DOMElements.transferSelectLeft.value, DOMElements.transferListLeft, e.target.value);
+                }, 300));
+                
+                DOMElements.transferSearchRight.addEventListener('input', debounce(e => {
+                    renderTransferList(DOMElements.transferSelectRight.value, DOMElements.transferListRight, e.target.value);
+                }, 300));
+
+                DOMElements.selectAllLeft.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    DOMElements.transferListLeft.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+                });
+
+                DOMElements.selectAllRight.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    DOMElements.transferListRight.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+                });
+                
+                // transferToLeftBtn has fa-arrow-right icon (→), moves from left list to right list
+                DOMElements.transferToLeftBtn.addEventListener('click', () => {
+                    transferChannels(DOMElements.transferSelectLeft, DOMElements.transferSelectRight, DOMElements.transferListLeft);
+                });
+
+                // transferToRightBtn has fa-arrow-left icon (←), moves from right list to left list
+                DOMElements.transferToRightBtn.addEventListener('click', () => {
+                    transferChannels(DOMElements.transferSelectRight, DOMElements.transferSelectLeft, DOMElements.transferListRight);
+                });
+
                 DOMElements.proToolBtn.addEventListener('click', () => {
                     populateCheckerDropdown();
                     showScreen(DOMElements.proToolScreen);
