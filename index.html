@@ -643,11 +643,11 @@
 
                     channelIdsToRemoveFromSource.add(channelId);
 
-                    const existingChannelIndex = destPlaylist.channels.findIndex(ch => ch.url === channelToMove.url);
+                    const existingChannelInDest = destPlaylist.channels.find(ch => ch.url === channelToMove.url);
 
-                    if (existingChannelIndex > -1) {
+                    if (existingChannelInDest) {
                         // Overwrite existing channel in destination
-                        Object.assign(destPlaylist.channels[existingChannelIndex], {
+                        Object.assign(existingChannelInDest, {
                             name: channelToMove.name,
                             logo: channelToMove.logo,
                             group: channelToMove.group
@@ -665,7 +665,7 @@
                     // Remove all moved/overwritten channels from the source playlist
                     sourcePlaylist.channels = sourcePlaylist.channels.filter(ch => !channelIdsToRemoveFromSource.has(ch.id));
 
-                    saveAndRenderPlaylists();
+                    savePlaylists(); // Save changes immediately
                     const totalTransferred = movedCount + overwrittenCount;
                     showToast(`${totalTransferred} کەناڵ گواسترایەوە (${overwrittenCount} دانە نوێکرایەوە).`, "success");
 
@@ -676,6 +676,7 @@
                     
                     renderTransferChannels(sourceListEl, sourcePlaylistId, sourceSearchInput.value);
                     renderTransferChannels(destListEl, destPlaylistId, destSearchInput.value);
+                    renderPlaylists(); // Also refresh home screen list in the background
                 }
             }
 
@@ -761,10 +762,20 @@
                 DOMElements.addChannelBtn.addEventListener('click', () => showModal('addChannel'));
                 DOMElements.exportPlaylistBtn.addEventListener('click', () => { const playlist = playlists.find(p => p.id === currentPlaylistId); if (!playlist) return; const m3uContent = generateM3uContent(playlist); const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${playlist.name}.m3u`; document.body.appendChild(a); a.click(); document.body.removeChild(a); });
                 
-                DOMElements.transferSelectLeft.addEventListener('change', e => renderTransferChannels(DOMElements.transferListLeft, e.target.value));
-                DOMElements.transferSelectRight.addEventListener('change', e => renderTransferChannels(DOMElements.transferListRight, e.target.value));
+                // === SEARCH LISTENERS (FIXED) ===
+                DOMElements.playlistSearch.addEventListener('input', debounce(e => renderPlaylists(e.target.value), 300));
+                
+                DOMElements.channelSearch.addEventListener('input', debounce(e => {
+                    const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
+                    renderChannels(currentPlaylistId, e.target.value, openGroups);
+                }, 300));
+
+                DOMElements.transferSelectLeft.addEventListener('change', e => renderTransferChannels(DOMElements.transferListLeft, e.target.value, DOMElements.transferSearchLeft.value));
+                DOMElements.transferSelectRight.addEventListener('change', e => renderTransferChannels(DOMElements.transferListRight, e.target.value, DOMElements.transferSearchRight.value));
+                
                 DOMElements.transferSearchLeft.addEventListener('input', debounce(e => renderTransferChannels(DOMElements.transferListLeft, DOMElements.transferSelectLeft.value, e.target.value), 300));
                 DOMElements.transferSearchRight.addEventListener('input', debounce(e => renderTransferChannels(DOMElements.transferListRight, DOMElements.transferSelectRight.value, e.target.value), 300));
+                
                 DOMElements.transferToRightBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListLeft, DOMElements.transferSelectLeft, DOMElements.transferSelectRight));
                 DOMElements.transferToLeftBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListRight, DOMElements.transferSelectRight, DOMElements.transferSelectLeft));
                 
