@@ -1,3 +1,14 @@
+بە دڵنیایییەوە. هەموو داواکارییەکانت بە وردی جێبەجێ کران.
+
+1.  **ناوەڕاستکردنی دوگمەکانی سەرەوە:** ئێستا بۆکس و ئایکۆنەکانی بەشی سەرەوەی بەرنامەکە (Header) بەشێوەیەکی ڕێک و جوان لەناوەڕاستدان.
+2.  **چاککردنی شوێنی پەنجەرەی زیادکردن:** پەنجەرەی مۆداڵ (بۆ نموونە، کاتی دروستکردنی لیستی نوێ) ئێستا کەمێک لە سەرەوەتر دەردەکەوێت بۆ ئەوەی لەسەر مۆبایل نەکەوێتە ژێر تەختەکلیل.
+3.  **پەیوەستکردنی پشکنەر بە داتای بەرنامە:**
+    *   لە بەشی "پشکنەری کەناڵەکان"، ئێستا دەتوانیت لیستێک لە فایلە ناوخۆییەکانی بەرنامەکە هەڵبژێریت بۆ پشکنین (لەبری ئەوەی تەنها فایلێک لە دەرەوە بار بکەیت).
+    *   دوای تەواوبوونی پشکنین بۆ لیستێکی ناوخۆیی، دوگمەیەکی نوێی "نوێکردنەوەی لیستی ناوخۆیی" دەردەکەوێت. بە کلیک کردن لەسەری، هەموو کەناڵە کارنەکراوەکان لە لیستە بنەڕەتییەکەدا دەسڕدرێنەوە و تەنها ئەوانە دەمێننەوە کە لە پشکنینەکەدا دەرچوون.
+
+فەرموو کۆدی نوێکراوەی فایلەکە:
+
+```html
 <!DOCTYPE html>
 <html lang="ku" dir="rtl">
 <head>
@@ -6,8 +17,9 @@
     <title>M3U Manager Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
-        /* All CSS styles remain the same as before, no changes needed here */
+        /* CSS from m3u.html */
         @import url('https://kurd-font.github.io/NRT-Reg/style.css');
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap');
         :root {
@@ -25,6 +37,7 @@
             --border-radius: 12px;
             --font-family: 'Poppins', 'NRT', sans-serif;
             --dropbox-color: #0061FE;
+            --warning-color: #f39c12; /* Added for checker tool */
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; }
@@ -46,8 +59,9 @@
         @keyframes screen-fade-in { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .screen.active { display: flex; }
         .main-header {
-            display: flex; justify-content: space-between; align-items: center; padding-bottom: 1.5rem; margin-bottom: 1rem;
-            border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 1rem;
+            display: flex; justify-content: center; /* MODIFICATION: Centered header items */
+            align-items: center; padding-bottom: 1.5rem; margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color); flex-wrap: wrap; gap: 1.5rem; /* Increased gap for better spacing */
         }
         #dropbox-controls {
             width: 100%; display: none; /* Initially hidden */
@@ -57,12 +71,13 @@
         .logo-title { display: flex; align-items: center; gap: 0.75rem; }
         .logo-title i { font-size: 24px; color: var(--primary-color); }
         .logo-title h1 { font-size: 20px; font-weight: 700; }
-        .main-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: flex-end; flex-grow: 1;}
-        #channels-screen header, #transfer-screen header { display: flex; align-items: center; position: relative; padding-bottom: 1.2rem; margin-bottom: 1.2rem; }
-        #channels-screen h1, #transfer-screen h1 { flex-grow: 1; text-align: center; font-size: 17px; }
+        .main-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; } /* MODIFICATION: Justify center */
+        #channels-screen header, #transfer-screen header, #pro-tool-screen header { display: flex; align-items: center; position: relative; padding-bottom: 1.2rem; margin-bottom: 1.2rem; }
+        #channels-screen h1, #transfer-screen h1, #pro-tool-screen h1 { flex-grow: 1; text-align: center; font-size: 17px; margin: 0; }
         .btn { padding: 10px 20px; border: 1px solid transparent; border-radius: var(--border-radius); color: white; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1); display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
-        .btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
+        .btn:hover:not(:disabled) { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 16px rgba(0,0,0,0.2); }
         .btn:active { transform: translateY(-1px) scale(1); }
+        .btn:disabled { background: #555 !important; cursor: not-allowed; opacity: 0.7; }
         .btn i { font-size: 13px; }
         .btn.primary { background: linear-gradient(45deg, var(--secondary-color), var(--primary-color)); }
         .btn.success { background: linear-gradient(45deg, #00B4AE, var(--success-color)); }
@@ -118,7 +133,7 @@
         .transfer-channel-item label { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; cursor: pointer; }
         .transfer-controls { display: flex; flex-direction: column; gap: 1rem; align-items: center; justify-content: center; padding-top: 8rem; }
         .transfer-controls .btn { padding: 10px; width: 45px; height: 45px; font-size: 17px; }
-        .modal-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.7); display: flex; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; align-items: flex-start; /* MODIFICATION: Changed from center */ padding-top: 5vh; /* MODIFICATION: Added padding */ }
         .modal-container:not(.hidden) { opacity: 1; pointer-events: all; }
         .modal-glass { background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--border-color); border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 2rem; width: 90%; max-width: 450px; transform: scale(0.9) translateY(20px); opacity: 0; transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
         .modal-container:not(.hidden) .modal-glass { transform: scale(1) translateY(0); opacity: 1; }
@@ -136,18 +151,74 @@
         .toast.error { border-left: 4px solid var(--danger-color); }
         .toast i { font-size: 16px; }
         .confirm-modal p{margin:1rem 0 2rem 0;font-size:15px;line-height:1.6}.confirm-modal .modal-actions{justify-content:center}#video-player-modal{z-index:1001}.video-player-content{position:relative;width:90%;max-width:800px;background:#000;border-radius:var(--border-radius);overflow:hidden}#video-player{width:100%;height:auto;display:block}.close-player-btn{position:absolute;top:15px;left:15px;background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:35px;height:35px;font-size:16px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center;transition:background .3s ease}.close-player-btn:hover{background:var(--danger-color)}.player-loader{position:absolute;top:50%;left:50%;border:4px solid var(--glass-bg);border-top:4px solid var(--primary-color);border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;z-index:11;display:none;transform:translate(-50%,-50%)}@keyframes spin{0%{transform:translate(-50%,-50%) rotate(0)}100%{transform:translate(-50%,-50%) rotate(360deg)}}.item-card.dragging{opacity:.5;background:var(--primary-color)}
+        #pro-tool-main-content .tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 25px; }
+        #pro-tool-main-content .tab-link { padding: 10px 20px; cursor: pointer; font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.6); transition: all 0.3s; border-bottom: 3px solid transparent; }
+        #pro-tool-main-content .tab-link.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        #pro-tool-main-content .tab-content { display: none; }
+        #pro-tool-main-content .tab-content.active { display: block; animation: screen-fade-in 0.5s; }
+        #pro-tool-main-content h2 { color: var(--primary-color); margin-bottom: 10px; font-size: 1.5rem; text-align: center; }
+        #pro-tool-main-content p.instructions { margin-bottom: 25px; font-size: 0.9rem; line-height: 1.6; text-align: center; opacity: 0.8; }
+        #pro-tool-main-content .section-title { font-size: 1rem; color: var(--primary-color); margin-top: 20px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; }
+        #pro-tool-main-content .file-upload-wrapper { display: flex; align-items: center; gap: 10px; position: relative; background: var(--glass-bg); padding: 10px; border-radius: var(--border-radius); margin-bottom: 15px; border: 1px solid var(--border-color); }
+        #pro-tool-main-content .file-upload-wrapper input[type="file"] { display: none; }
+        #pro-tool-main-content .file-upload-label { padding: 9px 18px; background: var(--primary-color); color: #fff; font-size: 0.85rem; font-weight: 600; border-radius: 8px; cursor: pointer; transition: background-color 0.3s; white-space: nowrap; }
+        #pro-tool-main-content .file-upload-label:hover { background: var(--secondary-color); }
+        #pro-tool-main-content .file-name { flex-grow: 1; text-align: right; font-size: 0.85rem; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px; }
+        #pro-tool-main-content .clear-btn { background: none; border: none; color: var(--danger-color); font-size: 1.4rem; cursor: pointer; padding: 0 5px; opacity: 0.7; transition: opacity 0.3s; }
+        #pro-tool-main-content .clear-btn:hover { opacity: 1; }
+        #pro-tool-main-content .options-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 20px; }
+        #pro-tool-main-content .option-item label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; cursor: pointer; }
+        #pro-tool-main-content input[type="text"], #pro-tool-main-content select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background-color: rgba(0,0,0,0.2); color: var(--light-color); font-size: 13px; transition: all 0.3s ease; }
+        #pro-tool-main-content input[type="text"]:focus, #pro-tool-main-content select:focus { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 168, 232, 0.3); }
+        #pro-tool-main-content .loading-spinner { border: 3px solid rgba(255, 255, 255, 0.3); border-top: 3px solid #fff; border-radius: 50%; width: 18px; height: 18px; animation: spin 1s linear infinite; }
+        #pro-tool-main-content .btn-settings { background-color: var(--secondary-color); margin: 15px 0; width: 100%; }
+        #pro-tool-main-content #settings-panel { display: none; margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.2); border-radius: var(--border-radius); }
+        #pro-tool-main-content .settings-actions { display: flex; gap: 10px; margin-top: 20px; }
+        #pro-tool-main-content #settings-panel .group-item { background: var(--glass-bg); padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+        #pro-tool-main-content #settings-panel .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #pro-tool-main-content #settings-panel .group-title { font-weight: 600; color: var(--primary-color); }
+        #pro-tool-main-content .keywords-container { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+        #pro-tool-main-content .keyword-tag { background: var(--secondary-color); padding: 5px 10px; border-radius: 5px; font-size: 0.8rem; display: flex; align-items: center; gap: 5px; }
+        #pro-tool-main-content .delete-keyword { color: var(--danger-color); cursor: pointer; font-weight: bold; }
+        #pro-tool-main-content .add-keyword-form { display: flex; gap: 5px; margin-top: 10px; }
+        #pro-tool-main-content #results { margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 20px; display: none; }
+        #pro-tool-main-content #results h3 { color: var(--primary-color); margin-bottom: 15px; text-align: center; font-size: 1.3rem; }
+        #pro-tool-main-content .result-item { padding: 12px 15px; background-color: var(--glass-bg); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background-color 0.3s; border: 1px solid var(--border-color); }
+        #pro-tool-main-content .result-item:hover { background-color: rgba(0, 168, 232, 0.1); border-color: var(--primary-color); }
+        #pro-tool-main-content .result-header { display: flex; justify-content: space-between; align-items: center; }
+        #pro-tool-main-content .result-info { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 0.9rem;}
+        #pro-tool-main-content .result-actions { display: flex; align-items: center; gap: 15px; }
+        #pro-tool-main-content .download-single { color: var(--primary-color); font-size: 1.1rem; text-decoration: none; }
+        #pro-tool-main-content .channel-preview { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 10px; padding: 0 15px; }
+        #pro-tool-main-content .channel-preview-list { list-style: none; padding: 15px 0; font-size: 0.8rem; color: #ccc; }
+        #pro-tool-main-content .channel-preview-list li { padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        #pro-tool-main-content .checker-progress { width: 100%; height: 10px; background-color: var(--glass-bg); border-radius: 5px; overflow: hidden; margin-top: 15px; }
+        #pro-tool-main-content .checker-progress-bar { width: 0%; height: 100%; background-color: var(--primary-color); transition: width 0.3s; }
+        #pro-tool-main-content .checker-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 20px 0; }
+        #pro-tool-main-content .stat-card { background: var(--glass-bg); padding: 15px; border-radius: 8px; text-align: center; }
+        #pro-tool-main-content .stat-card .value { font-size: 1.7rem; font-weight: 700; }
+        #pro-tool-main-content .stat-card .label { font-size: 0.85rem; opacity: 0.8; }
+        #pro-tool-main-content #checker-results-table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        #pro-tool-main-content #checker-results-table th, #pro-tool-main-content #checker-results-table td { padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
+        #pro-tool-main-content #checker-results-table th { text-align: right; }
+        #pro-tool-main-content .status-cell span { padding: 3px 8px; border-radius: 5px; font-weight: 600; font-size: 0.75rem; color: white; }
+        #pro-tool-main-content .status-working { background-color: var(--success-color); }
+        #pro-tool-main-content .status-failed { background-color: var(--danger-color); }
+        #pro-tool-main-content .status-cors { background-color: var(--warning-color); color: black; }
+        #pro-tool-main-content .status-timeout { background-color: #8e44ad; }
     </style>
 </head>
 <body>
     <div class="background-gradient"></div>
     <div id="toast-container"></div>
     <div class="container">
-        <!-- Screens -->
+        <!-- Home Screen -->
         <div id="home-screen" class="screen active">
             <header class="main-header">
                 <div class="logo-title"><i class="fas fa-layer-group"></i><h1>M3U Manager Pro</h1></div>
                 <div class="main-actions">
                     <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span>بەستنەوە</span></button>
+                    <button id="pro-tool-btn" class="btn primary"><i class="fas fa-cogs"></i></button>
                     <button id="transfer-btn" class="btn primary"><i class="fas fa-exchange-alt"></i></button>
                     <button id="import-playlist-btn" class="btn primary"><i class="fas fa-upload"></i></button>
                     <button id="add-playlist-btn" class="btn success"><i class="fas fa-plus"></i></button>
@@ -163,6 +234,7 @@
                 <ul id="playlist-list" class="item-list"></ul>
             </main>
         </div>
+        <!-- Channels Screen -->
         <div id="channels-screen" class="screen">
             <header>
                 <button id="back-to-home-btn" class="btn back-btn"><i class="fas fa-arrow-right"></i></button>
@@ -174,6 +246,7 @@
             </header>
             <main><div class="search-bar"><i class="fas fa-search"></i><input type="text" id="channel-search" placeholder="گەڕان بۆ کەناڵێک..."></div><div id="channel-list-container"></div></main>
         </div>
+        <!-- Transfer Screen -->
         <div id="transfer-screen" class="screen">
             <header><button id="back-to-home-from-transfer-btn" class="btn back-btn"><i class="fas fa-arrow-right"></i></button><h1>گواستنەوەی کەناڵەکان</h1></header>
             <main class="transfer-container">
@@ -198,6 +271,104 @@
                 </div>
             </main>
         </div>
+        <!-- Pro Tool Screen (from group.html) -->
+        <div id="pro-tool-screen" class="screen">
+            <header>
+                <button id="back-to-home-from-pro-tool-btn" class="btn back-btn"><i class="fas fa-arrow-right"></i></button>
+                <h1>ئامرازی پێشکەوتوو</h1>
+            </header>
+            <main id="pro-tool-main-content">
+                <div class="pro-tool-container">
+                    <div class="tabs">
+                        <div class="tab-link active" data-tab="tool-main">ئامرازی سەرەکی</div>
+                        <div class="tab-link" data-tab="tool-checker">پشکنەری کەناڵەکان</div>
+                    </div>
+                    <!-- Main Tool Content -->
+                    <div id="tool-main" class="tab-content active">
+                        <h2>دابەشکردن و تێکەڵکردنی زیرەک</h2>
+                        <p class="instructions">فایلەکانت تێکەڵ بکە و بە شێوەیەکی زیرەکانە دابەشیان بکە. دەتوانیت ڕێکخستنەکان بە دڵی خۆت بگۆڕیت!</p>
+                        <button id="toggleSettingsBtn" class="btn btn-settings">⚙️ ڕێکخستنەکان</button>
+                        <div id="settings-panel">
+                            <h3 class="section-title">ڕێکخستنی گرووپ و کلیلەوشەکان</h3>
+                            <div id="settings-groups-container"></div>
+                            <div class="add-keyword-form" style="margin-top: 20px;">
+                                <input type="text" id="newGroupName" placeholder="ناوی گرووپی نوێ">
+                                <button id="addNewGroupBtn" class="file-upload-label">زیادکردن</button>
+                            </div>
+                            <hr style="border-color: var(--border-color); margin: 20px 0;">
+                            <div>
+                                <label for="defaultGroupSelect" style="display:block; margin-bottom:10px;">گرووپی بنەڕەتی (بۆ کەناڵە نەناسراوەکان):</label>
+                                <select id="defaultGroupSelect"></select>
+                            </div>
+                            <div class="settings-actions">
+                                <button id="saveSettingsBtn" class="btn success">💾 پاشەکەوتکردن</button>
+                                <button id="resetSettingsBtn" class="btn danger">🔄 گێڕانەوە</button>
+                            </div>
+                        </div>
+                        <h3 class="section-title">هەڵبژاردنی فایلەکان</h3>
+                        <div class="file-upload-wrapper">
+                            <button class="clear-btn" id="clearBtn1" style="display:none;">×</button>
+                            <span id="fileName1" class="file-name">هیچ فایلێک هەڵنەبژێردراوە</span>
+                            <input type="file" id="fileInput1" accept=".m3u,.m3u8">
+                            <label for="fileInput1" class="file-upload-label">📁 فایلی یەکەم</label>
+                        </div>
+                        <div class="file-upload-wrapper">
+                            <button class="clear-btn" id="clearBtn2" style="display:none;">×</button>
+                            <span id="fileName2" class="file-name">هیچ فایلێک هەڵنەبژێردراوە</span>
+                            <input type="file" id="fileInput2" accept=".m3u,.m3u8">
+                            <label for="fileInput2" class="file-upload-label">➕ فایلی دووەم</label>
+                        </div>
+                        <h3 class="section-title">بژاردەکان</h3>
+                        <div class="options-grid">
+                            <div class="option-item"><label><input type="checkbox" id="mergeOnlyCheckbox"> تەنها تێکەڵکردن (بەبێ دابەشکردن)</label></div>
+                            <div class="option-item"><input type="text" id="filenamePrefix" placeholder="پێشگری ناوی فایل (بۆ نمونە: MyList-)"></div>
+                        </div>
+                        <button id="processButton" class="btn success" style="width:100%; margin-top:10px;">
+                            <span id="processBtnText">🚀 پرۆسێس و دابەشکردن</span>
+                            <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
+                        </button>
+                        <a id="downloadButton" class="btn primary" style="width:100%; display:none; margin-top:15px;">💾 داگرتنی هەموو فایلەکان (ZIP)</a>
+                        <div id="results">
+                            <h3>ئەنجامی کۆتایی:</h3><div id="result-list"></div>
+                        </div>
+                    </div>
+                    <!-- Checker Tool Content -->
+                    <div id="tool-checker" class="tab-content">
+                        <h2>پشکنەری کەناڵەکان</h2>
+                        <p class="instructions">فایلێکی M3U باربکە یان یەکێک لە لیستە ناوخۆییەکانت هەڵبژێرە بۆ پشکنین.</p>
+                        
+                        <!-- MODIFICATION: Added select for internal playlists -->
+                        <div style="margin-bottom: 15px;">
+                            <label for="checker-playlist-select" style="display: block; margin-bottom: 10px;">پشکنینی لیستی ناوخۆیی:</label>
+                            <select id="checker-playlist-select"></select>
+                        </div>
+                        <p style="text-align: center; margin-bottom: 15px; opacity: 0.7;">یان</p>
+                         <div class="file-upload-wrapper">
+                            <button class="clear-btn" id="clearBtnChecker" style="display:none;">×</button>
+                            <span id="fileNameChecker" class="file-name">هیچ فایلێک هەڵنەبژێردراوە</span>
+                            <input type="file" id="fileInputChecker" accept=".m3u,.m3u8">
+                            <label for="fileInputChecker" class="file-upload-label">📁 بارکردنی فایل</label>
+                        </div>
+                        <button id="startCheckerBtn" class="btn success" style="width:100%;" disabled>🔬 دەستپێکردنی پشکنین</button>
+                        <div id="checkerProgressContainer" style="display:none;">
+                             <p id="checkerProgressText" style="margin-top: 20px; text-align:center;"></p>
+                             <div class="checker-progress"><div id="checkerProgressBar" class="checker-progress-bar"></div></div>
+                        </div>
+                        <div id="checkerStats" class="checker-stats"></div>
+                        <div class="checker-actions" style="display: flex; gap: 10px; margin-top: 15px;">
+                            <a id="downloadCleanedBtn" class="btn primary" style="width:100%; display:none;">💾 داگرتنی لیستی پاککراوە</a>
+                            <button id="updateInternalPlaylistBtn" class="btn success" style="width:100%; display:none;">🔄 نوێکردنەوەی لیستی ناوخۆیی</button>
+                        </div>
+                        <div style="max-height: 300px; overflow-y: auto; margin-top:20px; border:1px solid var(--border-color); border-radius:var(--border-radius);">
+                            <table id="checker-results-table">
+                                <thead><tr><th>#</th><th>ناوی کەناڵ</th><th>دۆخ</th></tr></thead>
+                                <tbody id="checker-results-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
         <!-- Modals -->
         <div id="modal-backdrop" class="modal-container hidden"><div class="modal-glass"><h2 id="modal-title"></h2><div id="modal-content"></div><div class="modal-actions"><button id="modal-cancel-btn" class="btn danger-outline">پاشگەزبوونەوە</button><button id="modal-confirm-btn" class="btn success">پشتڕاستکردنەوە</button></div></div></div>
         <div id="confirm-modal-backdrop" class="modal-container hidden"><div class="modal-glass confirm-modal"><h2 id="confirm-modal-title">دڵنیایی سڕینەوە</h2><p id="confirm-modal-message"></p><div class="modal-actions"><button id="confirm-cancel-btn" class="btn success-outline">نەخێر</button><button id="confirm-ok-btn" class="btn danger">بەڵێ، بیسڕەوە</button></div></div></div>
@@ -205,6 +376,9 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // =================================================================
+            // ================== M3U MANAGER PRO (FILE 1) LOGIC ===============
+            // =================================================================
             const DOMElements = {
                 dropboxConnectBtn: document.getElementById('dropbox-connect-btn'),
                 dropboxControls: document.getElementById('dropbox-controls'),
@@ -214,13 +388,16 @@
                 homeScreen: document.getElementById('home-screen'),
                 channelsScreen: document.getElementById('channels-screen'),
                 transferScreen: document.getElementById('transfer-screen'),
+                proToolScreen: document.getElementById('pro-tool-screen'), 
                 playlistList: document.getElementById('playlist-list'),
                 addPlaylistBtn: document.getElementById('add-playlist-btn'),
                 importPlaylistBtn: document.getElementById('import-playlist-btn'),
                 playlistSearch: document.getElementById('playlist-search'),
                 transferBtn: document.getElementById('transfer-btn'),
+                proToolBtn: document.getElementById('pro-tool-btn'),
                 channelListContainer: document.getElementById('channel-list-container'),
                 backToHomeBtn: document.getElementById('back-to-home-btn'),
+                backToHomeFromProToolBtn: document.getElementById('back-to-home-from-pro-tool-btn'),
                 playlistTitleHeader: document.getElementById('playlist-title-header'),
                 addChannelBtn: document.getElementById('add-channel-btn'),
                 exportPlaylistBtn: document.getElementById('export-playlist-btn'),
@@ -348,7 +525,7 @@
                     if (!response.ok) await handleDropboxError(response);
                     const fileContent = await response.text();
                     const fileName = filePath.split('/').pop();
-                    parseM3u(fileName, fileContent, filePath); // Send dropboxPath to parseM3u
+                    parseM3u(fileName, fileContent, filePath);
                     showToast(`فایلی ${fileName} بە سەرکەوتوویی هێنرا.`, 'success');
                 } catch (error) {
                     showToast(error.message, 'error');
@@ -646,15 +823,9 @@
                     const existingChannelInDest = destPlaylist.channels.find(ch => ch.url === channelToMove.url);
 
                     if (existingChannelInDest) {
-                        // Overwrite existing channel in destination
-                        Object.assign(existingChannelInDest, {
-                            name: channelToMove.name,
-                            logo: channelToMove.logo,
-                            group: channelToMove.group
-                        });
+                        Object.assign(existingChannelInDest, { name: channelToMove.name, logo: channelToMove.logo, group: channelToMove.group });
                         overwrittenCount++;
                     } else {
-                        // Add as a new channel to destination
                         const newChannel = { ...channelToMove, id: Date.now() + movedCount };
                         destPlaylist.channels.push(newChannel);
                         movedCount++;
@@ -662,32 +833,310 @@
                 });
 
                 if (channelIdsToRemoveFromSource.size > 0) {
-                    // Remove all moved/overwritten channels from the source playlist
                     sourcePlaylist.channels = sourcePlaylist.channels.filter(ch => !channelIdsToRemoveFromSource.has(ch.id));
-
-                    savePlaylists(); // Save changes immediately
+                    savePlaylists();
                     const totalTransferred = movedCount + overwrittenCount;
                     showToast(`${totalTransferred} کەناڵ گواسترایەوە (${overwrittenCount} دانە نوێکرایەوە).`, "success");
-
-                    // Refresh both transfer lists
+                    
                     const sourceSearchInput = sourceSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight;
                     const destListEl = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferListLeft : DOMElements.transferListRight;
                     const destSearchInput = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight;
                     
                     renderTransferChannels(sourceListEl, sourcePlaylistId, sourceSearchInput.value);
                     renderTransferChannels(destListEl, destPlaylistId, destSearchInput.value);
-                    renderPlaylists(); // Also refresh home screen list in the background
+                    renderPlaylists();
                 }
             }
 
 
+            // =================================================================
+            // =================== PRO TOOL (FILE 2) LOGIC =====================
+            // =================================================================
+            const proToolElements = {
+                tabLinks: document.querySelectorAll('#pro-tool-main-content .tab-link'),
+                tabContents: document.querySelectorAll('#pro-tool-main-content .tab-content'),
+                fileInput1: document.getElementById('fileInput1'),
+                fileName1: document.getElementById('fileName1'),
+                clearBtn1: document.getElementById('clearBtn1'),
+                fileInput2: document.getElementById('fileInput2'),
+                fileName2: document.getElementById('fileName2'),
+                clearBtn2: document.getElementById('clearBtn2'),
+                processButton: document.getElementById('processButton'),
+                processBtnText: document.getElementById('processBtnText'),
+                loadingSpinner: document.getElementById('loadingSpinner'),
+                downloadButton: document.getElementById('downloadButton'),
+                resultsDiv: document.getElementById('results'),
+                resultListDiv: document.getElementById('result-list'),
+                toggleSettingsBtn: document.getElementById('toggleSettingsBtn'),
+                settingsPanel: document.getElementById('settings-panel'),
+                settingsContainer: document.getElementById('settings-groups-container'),
+                newGroupName: document.getElementById('newGroupName'),
+                addNewGroupBtn: document.getElementById('addNewGroupBtn'),
+                defaultGroupSelect: document.getElementById('defaultGroupSelect'),
+                saveSettingsBtn: document.getElementById('saveSettingsBtn'),
+                resetSettingsBtn: document.getElementById('resetSettingsBtn'),
+                mergeOnlyCheckbox: document.getElementById('mergeOnlyCheckbox'),
+                filenamePrefix: document.getElementById('filenamePrefix'),
+                fileInputChecker: document.getElementById('fileInputChecker'),
+                fileNameChecker: document.getElementById('fileNameChecker'),
+                clearBtnChecker: document.getElementById('clearBtnChecker'),
+                startCheckerBtn: document.getElementById('startCheckerBtn'),
+                checkerPlaylistSelect: document.getElementById('checker-playlist-select'), // NEW
+                checkerProgressContainer: document.getElementById('checkerProgressContainer'),
+                checkerProgressText: document.getElementById('checkerProgressText'),
+                checkerProgressBar: document.getElementById('checkerProgressBar'),
+                checkerStats: document.getElementById('checkerStats'),
+                downloadCleanedBtn: document.getElementById('downloadCleanedBtn'),
+                updateInternalPlaylistBtn: document.getElementById('updateInternalPlaylistBtn'), // NEW
+                checkerResultsBody: document.getElementById('checker-results-body'),
+            };
+
+            const defaultSettings = {
+                categories: { 'Kurdish TV': ['kurd', 'kurdsat', 'kurdistan', 'korek', 'nrt', 'rudaw', 'waar', 'vin', 'k24', 'کورد', 'kurdmax', 'net tv', 'ava tv'], 'Sports': ['sport', 'sports', 'ورزش', 'رياضة', 'alkass', 'ssc', 'bein', 'arena', 'dazn', 'espn', 'sky sport', 'ad sport', 'dubai sport', 'football', 'soccer', 'basketball', 'f1', 'laliga', 'serie a', 'bundesliga', 'premier league', 'champions league', 'كورة', 'الدوري'], 'News': ['news', 'اخبار', 'خبر', 'cnn', 'bbc', 'al jazeera', 'al arabiya', 'sky news', 'france 24', 'euronews'], 'Kids': ['kids', 'اطفال', 'کودک', 'cartoon', 'baby', 'anime', 'mbc3', 'disney', 'nickelodeon', 'cn', 'cartoon network', 'spacetoon'], 'Documentary': ['documentary', 'وثائقي', 'discovery', 'national geographic', 'nat geo', 'history', 'animal planet'], 'Cooking food': ['cook', 'food', 'طعام', 'طبخ', 'fatafeat', '24kitchen'], 'Quran': ['quran', 'قرآن', 'makkah', 'madinah', 'sunnah', 'islam', 'iqraa'] },
+                checkOrder: ['Kurdish TV', 'Sports', 'News', 'Kids', 'Documentary', 'Quran', 'Cooking food'],
+                defaultGroup: 'Kurdish TV'
+            };
+
+            let appSettings = {}; let processedData = {}; let checkerChannels = []; let isChecking = false;
+            let currentCheckingPlaylistId = null; // NEW: To track which internal playlist is being checked
+
+            function proToolLoadSettings() { const savedSettings = localStorage.getItem('m3uProSettings'); appSettings = savedSettings ? JSON.parse(savedSettings) : JSON.parse(JSON.stringify(defaultSettings)); proToolRenderSettingsUI(); }
+            function proToolSaveSettings() { appSettings.defaultGroup = proToolElements.defaultGroupSelect.value; localStorage.setItem('m3uProSettings', JSON.stringify(appSettings)); showToast('ڕێکخستنەکان پاشەکەوت کران!', 'success'); }
+            function proToolResetSettings() { if (confirm('ئایا دڵنیایت دەتەوێت هەموو ڕێکخستنەکان بگەڕێنیتەوە دۆخی سەرەتا؟')) { localStorage.removeItem('m3uProSettings'); proToolLoadSettings(); showToast('ڕێکخستنەکان گەڕێنرانەوە دۆخی سەرەتا.', 'success'); } }
+            function proToolRenderSettingsUI() {
+                proToolElements.settingsContainer.innerHTML = ''; proToolElements.defaultGroupSelect.innerHTML = '';
+                const allGroups = Object.keys(appSettings.categories);
+                allGroups.forEach(groupName => {
+                    const groupItem = document.createElement('div'); groupItem.className = 'group-item'; const keywords = appSettings.categories[groupName] || [];
+                    groupItem.innerHTML = `<div class="group-header"><span class="group-title">${groupName}</span><button class="clear-btn delete-group" data-group="${groupName}">×</button></div><div class="keywords-container">${keywords.map(kw => `<span class="keyword-tag">${kw}<span class="delete-keyword" data-group="${groupName}" data-keyword="${kw}">×</span></span>`).join('')}</div><div class="add-keyword-form"><input type="text" class="new-keyword-input" placeholder="کلیلەوشەی نوێ"><button class="file-upload-label add-keyword-btn" data-group="${groupName}">+</button></div>`;
+                    proToolElements.settingsContainer.appendChild(groupItem);
+                    const option = document.createElement('option'); option.value = groupName; option.textContent = groupName; proToolElements.defaultGroupSelect.appendChild(option);
+                });
+                proToolElements.defaultGroupSelect.value = appSettings.defaultGroup;
+            }
+            function proToolSetupFileInput(input, span, clearBtn) {
+                input.addEventListener('change', () => { 
+                    if (input.files.length > 0) { 
+                        span.textContent = input.files[0].name; 
+                        clearBtn.style.display = 'inline-block';
+                        proToolElements.checkerPlaylistSelect.value = ''; // Clear dropdown selection
+                        if(input.id === 'fileInputChecker') proToolElements.startCheckerBtn.disabled = false;
+                    } 
+                });
+                clearBtn.addEventListener('click', () => { 
+                    input.value = ''; span.textContent = 'هیچ فایلێک هەڵنەبژێردراوە'; 
+                    clearBtn.style.display = 'none'; 
+                    if(input.id === 'fileInputChecker' && proToolElements.checkerPlaylistSelect.value === '') { 
+                        proToolElements.startCheckerBtn.disabled = true; 
+                        proToolResetCheckerUI();
+                    } 
+                });
+            };
+            function proToolSetLoading(isLoading) { proToolElements.processButton.disabled = isLoading; proToolElements.loadingSpinner.style.display = isLoading ? 'block' : 'none'; proToolElements.processBtnText.textContent = isLoading ? '...چاوەڕوانبە' : '🚀 پرۆسێس و دابەشکردن'; }
+            function proToolProcessAndSplit(contents) {
+                processedData = {}; const combinedContent = contents.join('\n');
+                if (!combinedContent.includes('#EXTM3U')) { showToast('هیچ یەک لە فایلەکان ستاندارد نییە! دەبێت بە #EXTM3U دەست پێبکات.', 'error'); return; }
+                const allChannels = proToolParseM3uContent(combinedContent); const uniqueChannelsMap = new Map();
+                allChannels.forEach(channel => { const channelName = (channel.info.split(',').pop() || channel.name).trim().toLowerCase(); if (channelName && !uniqueChannelsMap.has(channelName)) { uniqueChannelsMap.set(channelName, channel); } });
+                const uniqueChannels = Array.from(uniqueChannelsMap.values());
+                let statusMsg = `پرۆسە تەواوبوو! ${uniqueChannels.length} کەناڵی بێ دووبارەبوونەوە دۆزرایەوە.`;
+                if (proToolElements.mergeOnlyCheckbox.checked) { proToolGenerateSingleMergedFile(uniqueChannels); showToast(statusMsg, 'success'); return; }
+                const groupedChannels = {};
+                Object.keys(appSettings.categories).forEach(group => groupedChannels[group] = []);
+                uniqueChannels.forEach(channel => {
+                    const channelInfoForSearch = (channel.info.split(',').pop() + ' ' + channel.info).toLowerCase(); let assignedGroup = null;
+                    for (const groupName of appSettings.checkOrder) { if (appSettings.categories[groupName] && appSettings.categories[groupName].some(keyword => channelInfoForSearch.includes(keyword.toLowerCase()))) { assignedGroup = groupName; break; } }
+                    groupedChannels[assignedGroup || appSettings.defaultGroup].push(channel);
+                });
+                proToolGenerateGroupedFiles(groupedChannels); showToast(statusMsg, 'success');
+            }
+            function proToolGenerateSingleMergedFile(channels) { const prefix = proToolElements.filenamePrefix.value.trim(); processedData['Merged_List'] = { channels: channels, content: proToolGenerateM3uString(channels) }; proToolDisplayResults(processedData); proToolElements.downloadButton.style.display = 'none'; }
+            function proToolGenerateGroupedFiles(groupedChannels) {
+                const prefix = proToolElements.filenamePrefix.value.trim(); const zip = new JSZip();
+                Object.keys(groupedChannels).forEach(groupName => {
+                    const channelsInGroup = groupedChannels[groupName];
+                    if (channelsInGroup && channelsInGroup.length > 0) {
+                        let m3uContent = '#EXTM3U\n';
+                        channelsInGroup.forEach(channel => {
+                            const infoLine = channel.info || `#EXTINF:-1 tvg-logo="${channel.logo || ''}" group-title="${groupName}",${channel.name}`;
+                            const lastCommaIndex = infoLine.lastIndexOf(','); let newInfoLine;
+                            if (lastCommaIndex !== -1) { let attributesPart = infoLine.substring(0, lastCommaIndex); const channelNamePart = infoLine.substring(lastCommaIndex + 1); attributesPart = attributesPart.replace(/group-title=".*?"/g, '').trim().replace(/\s\s+/g, ' '); newInfoLine = `${attributesPart} group-title="${groupName}",${channelNamePart}`; } else { newInfoLine = `${infoLine} group-title="${groupName}"`; }
+                            m3uContent += `${newInfoLine}\n${channel.url}\n`;
+                        });
+                        const filename = `${prefix}${groupName}.m3u`;
+                        zip.file(filename, m3uContent);
+                        processedData[groupName] = { channels: channelsInGroup, content: m3uContent };
+                    }
+                });
+                if (Object.keys(processedData).length > 0) {
+                    zip.generateAsync({ type: "blob" }).then(content => { const url = URL.createObjectURL(content); proToolElements.downloadButton.href = url; proToolElements.downloadButton.setAttribute('download', `${prefix}M3U_Playlists.zip`); proToolElements.downloadButton.style.display = 'block'; });
+                }
+                proToolDisplayResults(processedData);
+            }
+            function proToolDisplayResults(data) {
+                proToolElements.resultListDiv.innerHTML = ''; const prefix = proToolElements.filenamePrefix.value.trim();
+                Object.keys(data).forEach(groupName => {
+                    const groupData = data[groupName]; const count = groupData.channels.length;
+                    if (count > 0) {
+                        const blob = new Blob([groupData.content], { type: 'application/vnd.apple.mpegurl' }); const url = URL.createObjectURL(blob); const filename = `${prefix}${groupName}.m3u`;
+                        const resultItem = document.createElement('div'); resultItem.className = 'result-item';
+                        let previewList = groupData.channels.slice(0, 5).map(ch => `<li>${ch.name || ch.info.split(',').pop()}</li>`).join('');
+                        resultItem.innerHTML = `<div class="result-header"><div class="result-info"><span>📁</span><span>${groupName} (${count} کەناڵ)</span></div><div class="result-actions"><a href="${url}" download="${filename}" class="download-single" title="داگرتنی ئەم گرووپە"><i class="fas fa-download"></i></a></div></div><div class="channel-preview"><ul class="channel-preview-list">${previewList}</ul></div>`;
+                        proToolElements.resultListDiv.appendChild(resultItem);
+                    }
+                });
+                proToolElements.resultsDiv.style.display = 'block';
+            }
+            function proToolReadFileAsText(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = event => resolve(event.target.result); reader.onerror = error => reject(error); reader.readAsText(file); }); }
+            function proToolParseM3uContent(content) { const lines = content.split('\n'); const channels = []; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (line.startsWith('#EXTINF:')) { const url = lines[i + 1] ? lines[i + 1].trim() : ''; const name = (line.match(/,(.*)/) || [])[1]?.trim() || 'Unknown'; if (url && !url.startsWith('#')) { channels.push({ info: line, url: url, name: name }); i++; } } } return channels; }
+            function proToolGenerateM3uString(channels) { let content = '#EXTM3U\n'; channels.forEach(ch => { const infoLine = ch.info || `#EXTINF:-1 tvg-logo="${ch.logo || ''}" group-title="${ch.group || ''}",${ch.name}`; content += `${infoLine}\n${ch.url}\n`; }); return content; }
+            function proToolResetCheckerUI() { proToolElements.checkerProgressContainer.style.display = 'none'; proToolElements.checkerProgressBar.style.width = '0%'; proToolElements.checkerResultsBody.innerHTML = ''; proToolElements.checkerStats.innerHTML = ''; proToolElements.downloadCleanedBtn.style.display = 'none'; proToolElements.updateInternalPlaylistBtn.style.display = 'none'; currentCheckingPlaylistId = null;}
+            function proToolUpdateCheckerStats(stats) { proToolElements.checkerStats.innerHTML = `<div class="stat-card"><div class="value">${stats.total}</div><div class="label">کۆی گشتی</div></div><div class="stat-card"><div class="value" style="color:var(--success-color)">${stats.working}</div><div class="label">✅ کارا</div></div><div class="stat-card"><div class="value" style="color:var(--warning-color)">${stats.cors}</div><div class="label">⚠️ هەڵەی CORS</div></div><div class="stat-card"><div class="value" style="color:#8e44ad">${stats.timeout}</div><div class="label">⏱️ وەڵام نەبوو</div></div>`; }
+            function proToolUpdateCheckerTableRow(index, channel) {
+                const row = document.createElement('tr'); const statusMap = { 'Working': { text: 'کارا', class: 'status-working' }, 'Failed': { text: 'کار ناکات', class: 'status-failed' }, 'CORS': { text: 'هەڵەی CORS', class: 'status-cors' }, 'Timeout': { text: 'وەڵام نەبوو', class: 'status-timeout' } };
+                const statusInfo = statusMap[channel.status] || { text: 'نەزانراو', class: '' };
+                row.innerHTML = `<td>${index}</td><td>${channel.name}</td><td class="status-cell"><span class="${statusInfo.class}">${statusInfo.text}</span></td>`;
+                proToolElements.checkerResultsBody.prepend(row);
+            }
+            async function proToolCheckSingleUrl(url) {
+                const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 5000);
+                try { await fetch(url, { signal: controller.signal, mode: 'no-cors' }); return { status: 'Working' }; } catch (error) { if (error.name === 'AbortError') { return { status: 'Timeout' }; } return { status: 'CORS' }; } finally { clearTimeout(timeoutId); }
+            }
+            async function proToolCheckAllChannels(channels) {
+                let stats = { total: channels.length, working: 0, failed: 0, cors: 0, timeout: 0, checked: 0 }; let workingChannels = [];
+                proToolUpdateCheckerStats(stats);
+                for (const channel of channels) {
+                    if (!isChecking) { proToolElements.checkerProgressText.textContent += ' (ڕاگیرا)'; break; }
+                    stats.checked++;
+                    proToolElements.checkerProgressText.textContent = `پشکنینی کەناڵی ${stats.checked} لە ${stats.total}...`;
+                    proToolElements.checkerProgressBar.style.width = `${(stats.checked / stats.total) * 100}%`;
+                    const result = await proToolCheckSingleUrl(channel.url);
+                    channel.status = result.status; stats[result.status.toLowerCase()]++;
+                    if(result.status === 'Working') workingChannels.push(channel);
+                    proToolUpdateCheckerTableRow(stats.checked, channel); proToolUpdateCheckerStats(stats);
+                }
+                
+                proToolElements.downloadCleanedBtn.style.display = 'none';
+                proToolElements.updateInternalPlaylistBtn.style.display = 'none';
+
+                if(workingChannels.length > 0){
+                    const blob = new Blob([proToolGenerateM3uString(workingChannels)], { type: 'application/vnd.apple.mpegurl' }); 
+                    const url = URL.createObjectURL(blob); 
+                    proToolElements.downloadCleanedBtn.href = url; 
+                    proToolElements.downloadCleanedBtn.setAttribute('download', 'Cleaned_List.m3u'); 
+                    proToolElements.downloadCleanedBtn.style.display = 'block';
+
+                    if (currentCheckingPlaylistId) {
+                        proToolElements.updateInternalPlaylistBtn.style.display = 'block';
+                    }
+                }
+            }
+            function populateCheckerDropdown() {
+                const select = proToolElements.checkerPlaylistSelect;
+                select.innerHTML = '<option value="">لیستێکی ناوخۆیی هەڵبژێرە...</option>';
+                playlists.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.name} (${p.channels.length} کەناڵ)`;
+                    select.appendChild(option);
+                });
+            }
+            function initializeProTool() {
+                proToolLoadSettings();
+                proToolElements.tabLinks.forEach(tab => { tab.addEventListener('click', () => { proToolElements.tabLinks.forEach(link => link.classList.remove('active')); proToolElements.tabContents.forEach(content => content.classList.remove('active')); tab.classList.add('active'); document.getElementById(tab.dataset.tab).classList.add('active'); }); });
+                proToolSetupFileInput(proToolElements.fileInput1, proToolElements.fileName1, proToolElements.clearBtn1);
+                proToolSetupFileInput(proToolElements.fileInput2, proToolElements.fileName2, proToolElements.clearBtn2);
+                proToolSetupFileInput(proToolElements.fileInputChecker, proToolElements.fileNameChecker, proToolElements.clearBtnChecker);
+                proToolElements.processButton.addEventListener('click', async () => { if (proToolElements.fileInput1.files.length === 0 && proToolElements.fileInput2.files.length === 0) { showToast('تکایە لانیکەم یەک فایل هەڵبژێرە!', 'error'); return; } proToolSetLoading(true); const filesToProcess = []; if (proToolElements.fileInput1.files.length > 0) filesToProcess.push(proToolElements.fileInput1.files[0]); if (proToolElements.fileInput2.files.length > 0) filesToProcess.push(proToolElements.fileInput2.files[0]); try { const fileContents = await Promise.all(filesToProcess.map(proToolReadFileAsText)); proToolProcessAndSplit(fileContents); } catch (error) { showToast('هەڵەیەک لە خوێندنەوەی فایل(ەکان)دا ڕوویدا!', 'error'); console.error(error); } finally { proToolSetLoading(false); } });
+                
+                proToolElements.checkerPlaylistSelect.addEventListener('change', (e) => {
+                    const hasSelection = e.target.value !== '';
+                    proToolElements.startCheckerBtn.disabled = !hasSelection;
+                    if(hasSelection) {
+                        // Clear file input if a playlist is selected
+                        proToolElements.fileInputChecker.value = '';
+                        proToolElements.fileNameChecker.textContent = 'هیچ فایلێک هەڵنەبژێردراوە';
+                        proToolElements.clearBtnChecker.style.display = 'none';
+                    }
+                });
+
+                proToolElements.startCheckerBtn.addEventListener('click', async () => { 
+                    if(isChecking) { isChecking = false; proToolElements.startCheckerBtn.textContent = '🔬 دەستپێکردنی پشکنین'; proToolElements.startCheckerBtn.classList.remove('danger'); proToolElements.startCheckerBtn.classList.add('success'); proToolElements.startCheckerBtn.disabled = false; return; } 
+                    
+                    const selectedPlaylistId = proToolElements.checkerPlaylistSelect.value;
+                    const hasFile = proToolElements.fileInputChecker.files.length > 0;
+
+                    if (!selectedPlaylistId && !hasFile) return;
+
+                    isChecking = true; 
+                    proToolElements.startCheckerBtn.textContent = '⏹️ ڕاگرتنی پشکنین'; 
+                    proToolElements.startCheckerBtn.classList.remove('success'); 
+                    proToolElements.startCheckerBtn.classList.add('danger'); 
+                    proToolElements.startCheckerBtn.disabled = false; 
+                    proToolResetCheckerUI(); 
+                    proToolElements.checkerProgressContainer.style.display = 'block'; 
+                    
+                    if (selectedPlaylistId) {
+                        currentCheckingPlaylistId = Number(selectedPlaylistId);
+                        const playlist = playlists.find(p => p.id === currentCheckingPlaylistId);
+                        checkerChannels = JSON.parse(JSON.stringify(playlist.channels)); // Deep copy
+                    } else if (hasFile) {
+                        currentCheckingPlaylistId = null;
+                        const fileContent = await proToolReadFileAsText(proToolElements.fileInputChecker.files[0]); 
+                        checkerChannels = proToolParseM3uContent(fileContent); 
+                    }
+
+                    await proToolCheckAllChannels(checkerChannels); 
+                    isChecking = false; 
+                    if (proToolElements.startCheckerBtn.textContent.includes('ڕاگرتن')) { 
+                        proToolElements.startCheckerBtn.textContent = '🔬 دەستپێکردنی پشکنین'; 
+                        proToolElements.startCheckerBtn.classList.remove('danger'); 
+                        proToolElements.startCheckerBtn.classList.add('success'); 
+                    } 
+                });
+                
+                proToolElements.updateInternalPlaylistBtn.addEventListener('click', () => {
+                    if (!currentCheckingPlaylistId) return;
+                    const playlistToUpdate = playlists.find(p => p.id === currentCheckingPlaylistId);
+                    if (!playlistToUpdate) {
+                        showToast('لیستەکە نەدۆزرایەوە!', 'error');
+                        return;
+                    }
+                    const workingChannels = checkerChannels.filter(ch => ch.status === 'Working');
+                    playlistToUpdate.channels = workingChannels;
+                    saveAndRenderPlaylists();
+                    showToast(`لیستی "${playlistToUpdate.name}" بە سەرکەوتوویی نوێکرایەوە.`, 'success');
+                    proToolElements.updateInternalPlaylistBtn.style.display = 'none';
+                });
+
+                proToolElements.toggleSettingsBtn.addEventListener('click', () => { proToolElements.settingsPanel.style.display = proToolElements.settingsPanel.style.display === 'block' ? 'none' : 'block'; });
+                proToolElements.saveSettingsBtn.addEventListener('click', proToolSaveSettings);
+                proToolElements.resetSettingsBtn.addEventListener('click', proToolResetSettings);
+                proToolElements.settingsContainer.addEventListener('click', e => {
+                    const target = e.target;
+                    if (target.classList.contains('delete-group')) { const groupName = target.dataset.group; if (confirm(`ئایا دڵنیایت لە سڕینەوەی گرووپی "${groupName}"؟`)) { delete appSettings.categories[groupName]; appSettings.checkOrder = appSettings.checkOrder.filter(g => g !== groupName); if (appSettings.defaultGroup === groupName) { appSettings.defaultGroup = appSettings.checkOrder[0] || ''; } proToolRenderSettingsUI(); } }
+                    if (target.classList.contains('delete-keyword')) { const { group, keyword } = target.dataset; appSettings.categories[group] = appSettings.categories[group].filter(kw => kw !== keyword); proToolRenderSettingsUI(); }
+                    if (target.classList.contains('add-keyword-btn')) { const groupName = target.dataset.group; const input = target.previousElementSibling; const newKeyword = input.value.trim(); if (newKeyword && !appSettings.categories[groupName].includes(newKeyword)) { appSettings.categories[groupName].push(newKeyword); input.value = ''; proToolRenderSettingsUI(); } }
+                });
+                proToolElements.addNewGroupBtn.addEventListener('click', () => { const groupName = proToolElements.newGroupName.value.trim(); if (groupName && !appSettings.categories[groupName]) { appSettings.categories[groupName] = []; appSettings.checkOrder.push(groupName); proToolElements.newGroupName.value = ''; proToolRenderSettingsUI(); } else { showToast('ناوی گرووپەکە بەتاڵە یان پێشتر بەکارهاتووە.', 'error'); } });
+                proToolElements.resultListDiv.addEventListener('click', e => { const resultItem = e.target.closest('.result-item'); if (!resultItem) return; if (e.target.closest('.download-single')) return; const preview = resultItem.querySelector('.channel-preview'); if (preview.style.maxHeight && preview.style.maxHeight !== '0px') { preview.style.maxHeight = '0px'; preview.style.padding = '0 15px'; } else { preview.style.padding = '15px 15px 5px 15px'; preview.style.maxHeight = preview.scrollHeight + 'px'; } });
+            }
+
+
+            // =================================================================
+            // ========================= MAIN APP INIT =========================
+            // =================================================================
             function initializeApp() {
+                // M3U Manager Pro Init
                 handleAuthRedirect();
                 updateDropboxUI();
                 loadPlaylists();
                 renderPlaylists();
 
-                // All event listeners
+                // Pro Tool Init
+                initializeProTool();
+
+                // === All Event Listeners ===
                 DOMElements.dropboxConnectBtn.addEventListener('click', connectToDropbox);
                 DOMElements.dropboxDisconnectBtn.addEventListener('click', disconnectFromDropbox);
                 DOMElements.dropboxFetchBtn.addEventListener('click', showFetchFromDropboxModal);
@@ -703,6 +1152,10 @@
                 DOMElements.importPlaylistBtn.addEventListener('click', () => { const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = '.m3u,.m3u8'; fileInput.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = event => parseM3u(file.name, event.target.result); reader.readAsText(file); }; fileInput.click(); });
                 
                 DOMElements.transferBtn.addEventListener('click', initTransferScreen);
+                DOMElements.proToolBtn.addEventListener('click', () => {
+                    populateCheckerDropdown(); // Update the dropdown every time the tool is opened
+                    showScreen(DOMElements.proToolScreen);
+                });
                 
                 DOMElements.playlistList.addEventListener('click', (e) => {
                     const card = e.target.closest('.item-card'); if (!card) return;
@@ -753,18 +1206,24 @@
                 DOMElements.backToHomeBtn.addEventListener('click', () => {
                     const playlist = playlists.find(p => p.id === currentPlaylistId);
                     if (playlist && playlist.dropboxPath) {
-                        saveToDropbox(currentPlaylistId, playlist.dropboxPath, true); // Auto-save
+                        saveToDropbox(currentPlaylistId, playlist.dropboxPath, true);
                     }
+                    renderPlaylists(); // Refresh playlist counts on home screen
+                    showScreen(DOMElements.homeScreen);
+                });
+                DOMElements.backToHomeFromTransferBtn.addEventListener('click', () => {
+                    renderPlaylists();
+                    showScreen(DOMElements.homeScreen);
+                });
+                DOMElements.backToHomeFromProToolBtn.addEventListener('click', () => {
+                    renderPlaylists();
                     showScreen(DOMElements.homeScreen);
                 });
 
-                DOMElements.backToHomeFromTransferBtn.addEventListener('click', () => showScreen(DOMElements.homeScreen));
                 DOMElements.addChannelBtn.addEventListener('click', () => showModal('addChannel'));
                 DOMElements.exportPlaylistBtn.addEventListener('click', () => { const playlist = playlists.find(p => p.id === currentPlaylistId); if (!playlist) return; const m3uContent = generateM3uContent(playlist); const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${playlist.name}.m3u`; document.body.appendChild(a); a.click(); document.body.removeChild(a); });
                 
-                // === SEARCH LISTENERS (FIXED) ===
                 DOMElements.playlistSearch.addEventListener('input', debounce(e => renderPlaylists(e.target.value), 300));
-                
                 DOMElements.channelSearch.addEventListener('input', debounce(e => {
                     const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
                     renderChannels(currentPlaylistId, e.target.value, openGroups);
@@ -779,15 +1238,8 @@
                 DOMElements.transferToRightBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListLeft, DOMElements.transferSelectLeft, DOMElements.transferSelectRight));
                 DOMElements.transferToLeftBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListRight, DOMElements.transferSelectRight, DOMElements.transferSelectLeft));
                 
-                DOMElements.selectAllLeft.addEventListener('change', (e) => {
-                    const isChecked = e.target.checked;
-                    DOMElements.transferListLeft.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
-                });
-
-                DOMElements.selectAllRight.addEventListener('change', (e) => {
-                    const isChecked = e.target.checked;
-                    DOMElements.transferListRight.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
-                });
+                DOMElements.selectAllLeft.addEventListener('change', (e) => { const isChecked = e.target.checked; DOMElements.transferListLeft.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked); });
+                DOMElements.selectAllRight.addEventListener('change', (e) => { const isChecked = e.target.checked; DOMElements.transferListRight.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked); });
             }
 
             initializeApp();
@@ -795,3 +1247,4 @@
     </script>
 </body>
 </html>
+```
