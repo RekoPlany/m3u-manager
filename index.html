@@ -1,14 +1,3 @@
-بە دڵنیایییەوە. هەموو داواکارییەکانت بە وردی جێبەجێ کران.
-
-1.  **ناوەڕاستکردنی دوگمەکانی سەرەوە:** ئێستا بۆکس و ئایکۆنەکانی بەشی سەرەوەی بەرنامەکە (Header) بەشێوەیەکی ڕێک و جوان لەناوەڕاستدان.
-2.  **چاککردنی شوێنی پەنجەرەی زیادکردن:** پەنجەرەی مۆداڵ (بۆ نموونە، کاتی دروستکردنی لیستی نوێ) ئێستا کەمێک لە سەرەوەتر دەردەکەوێت بۆ ئەوەی لەسەر مۆبایل نەکەوێتە ژێر تەختەکلیل.
-3.  **پەیوەستکردنی پشکنەر بە داتای بەرنامە:**
-    *   لە بەشی "پشکنەری کەناڵەکان"، ئێستا دەتوانیت لیستێک لە فایلە ناوخۆییەکانی بەرنامەکە هەڵبژێریت بۆ پشکنین (لەبری ئەوەی تەنها فایلێک لە دەرەوە بار بکەیت).
-    *   دوای تەواوبوونی پشکنین بۆ لیستێکی ناوخۆیی، دوگمەیەکی نوێی "نوێکردنەوەی لیستی ناوخۆیی" دەردەکەوێت. بە کلیک کردن لەسەری، هەموو کەناڵە کارنەکراوەکان لە لیستە بنەڕەتییەکەدا دەسڕدرێنەوە و تەنها ئەوانە دەمێننەوە کە لە پشکنینەکەدا دەرچوون.
-
-فەرموو کۆدی نوێکراوەی فایلەکە:
-
-```html
 <!DOCTYPE html>
 <html lang="ku" dir="rtl">
 <head>
@@ -217,7 +206,7 @@
             <header class="main-header">
                 <div class="logo-title"><i class="fas fa-layer-group"></i><h1>M3U Manager Pro</h1></div>
                 <div class="main-actions">
-                    <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span>بەستنەوە</span></button>
+                    <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span> </span></button>
                     <button id="pro-tool-btn" class="btn primary"><i class="fas fa-cogs"></i></button>
                     <button id="transfer-btn" class="btn primary"><i class="fas fa-exchange-alt"></i></button>
                     <button id="import-playlist-btn" class="btn primary"><i class="fas fa-upload"></i></button>
@@ -286,7 +275,7 @@
                     <!-- Main Tool Content -->
                     <div id="tool-main" class="tab-content active">
                         <h2>دابەشکردن و تێکەڵکردنی زیرەک</h2>
-                        <p class="instructions">فایلەکانت تێکەڵ بکە و بە شێوەیەکی زیرەکانە دابەشیان بکە. دەتوانیت ڕێکخستنەکان بە دڵی خۆت بگۆڕیت!</p>
+                        <p class="instructions"></p>
                         <button id="toggleSettingsBtn" class="btn btn-settings">⚙️ ڕێکخستنەکان</button>
                         <div id="settings-panel">
                             <h3 class="section-title">ڕێکخستنی گرووپ و کلیلەوشەکان</h3>
@@ -335,7 +324,7 @@
                     <!-- Checker Tool Content -->
                     <div id="tool-checker" class="tab-content">
                         <h2>پشکنەری کەناڵەکان</h2>
-                        <p class="instructions">فایلێکی M3U باربکە یان یەکێک لە لیستە ناوخۆییەکانت هەڵبژێرە بۆ پشکنین.</p>
+                        <p class="instructions"></p>
                         
                         <!-- MODIFICATION: Added select for internal playlists -->
                         <div style="margin-bottom: 15px;">
@@ -1247,4 +1236,3 @@
     </script>
 </body>
 </html>
-```
