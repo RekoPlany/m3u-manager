@@ -71,7 +71,7 @@
         .btn.danger-outline, .btn.success-outline { background: transparent; color: var(--light-color); border: 1px solid var(--border-color); box-shadow: none; text-shadow: none; }
         .btn.danger-outline:hover { background: var(--danger-color); border-color: var(--danger-color); color: white; }
         .btn.success-outline:hover { background: var(--success-color); border-color: var(--success-color); color: white; }
-        main { flex-grow: 1; overflow-y: auto; padding-right: 10px; }
+        main { flex-grow: 1; overflow-y: auto; padding-right: 10px; min-height: 0; }
         main::-webkit-scrollbar { width: 6px; }
         main::-webkit-scrollbar-track { background: transparent; }
         main::-webkit-scrollbar-thumb { background-color: var(--primary-color); border-radius: 10px; }
@@ -593,20 +593,26 @@
             function initTransferScreen() { populateTransferDropdowns(); DOMElements.transferListLeft.innerHTML = ''; DOMElements.transferListRight.innerHTML = ''; DOMElements.transferSearchLeft.value = ''; DOMElements.transferSearchRight.value = ''; DOMElements.selectAllLeft.checked = false; DOMElements.selectAllRight.checked = false; showScreen(DOMElements.transferScreen); }
             function populateTransferDropdowns() { const selects = [DOMElements.transferSelectLeft, DOMElements.transferSelectRight]; selects.forEach(select => { const currentValue = select.value; select.innerHTML = '<option value="">هەڵبژێرە...</option>'; playlists.forEach(p => { const option = document.createElement('option'); option.value = p.id; option.textContent = p.name; select.appendChild(option); }); select.value = currentValue; }); }
             
-            function renderTransferChannels(listElement, playlistId, filter = '') { 
-                listElement.innerHTML = ''; 
-                if (!playlistId) return; 
-                const playlist = playlists.find(p => p.id === Number(playlistId)); 
-                if (!playlist) return; 
-                
+            function renderTransferChannels(listElement, playlistId, filter = '') {
+                listElement.innerHTML = '';
+                if (!playlistId) return;
+                const playlist = playlists.find(p => p.id === Number(playlistId));
+                if (!playlist) return;
+
                 const listId = listElement.id;
                 if (listId === 'transfer-list-left') DOMElements.selectAllLeft.checked = false;
                 else if (listId === 'transfer-list-right') DOMElements.selectAllRight.checked = false;
 
-                const fragment = document.createDocumentFragment(); 
-                const channelsToRender = playlist.channels.filter(ch => ch.name.toLowerCase().includes(filter.toLowerCase())); 
-                channelsToRender.forEach(channel => { const li = document.createElement('li'); li.className = 'transfer-channel-item'; li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}">${channel.name}</label>`; fragment.appendChild(li); }); 
-                listElement.appendChild(fragment); 
+                const fragment = document.createDocumentFragment();
+                const channelsToRender = playlist.channels.filter(ch => ch.name.toLowerCase().includes(filter.toLowerCase()));
+                channelsToRender.forEach(channel => {
+                    const li = document.createElement('li');
+                    li.className = 'transfer-channel-item';
+                    const sanitizedName = channel.name.replace(/"/g, '"');
+                    li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}" title="${sanitizedName}">${channel.name}</label>`;
+                    fragment.appendChild(li);
+                });
+                listElement.appendChild(fragment);
             }
 
             function handleChannelTransfer(sourceListEl, sourceSelectEl, destSelectEl) {
@@ -626,39 +632,50 @@
                     return;
                 }
 
-                const destChannelUrls = new Set(destPlaylist.channels.map(ch => ch.url));
-                const channelIdsToMove = [];
-                const channelsToMove = [];
+                let movedCount = 0;
+                let overwrittenCount = 0;
+                const channelIdsToRemoveFromSource = new Set();
 
                 selectedCheckboxes.forEach(checkbox => {
                     const channelId = Number(checkbox.dataset.channelId);
                     const channelToMove = sourcePlaylist.channels.find(ch => ch.id === channelId);
-                    if (channelToMove && !destChannelUrls.has(channelToMove.url)) {
-                        channelIdsToMove.push(channelId);
-                        channelsToMove.push(channelToMove);
-                        destChannelUrls.add(channelToMove.url); 
+                    if (!channelToMove) return;
+
+                    channelIdsToRemoveFromSource.add(channelId);
+
+                    const existingChannelIndex = destPlaylist.channels.findIndex(ch => ch.url === channelToMove.url);
+
+                    if (existingChannelIndex > -1) {
+                        // Overwrite existing channel in destination
+                        Object.assign(destPlaylist.channels[existingChannelIndex], {
+                            name: channelToMove.name,
+                            logo: channelToMove.logo,
+                            group: channelToMove.group
+                        });
+                        overwrittenCount++;
+                    } else {
+                        // Add as a new channel to destination
+                        const newChannel = { ...channelToMove, id: Date.now() + movedCount };
+                        destPlaylist.channels.push(newChannel);
+                        movedCount++;
                     }
                 });
 
-                if (channelsToMove.length > 0) {
-                    channelsToMove.forEach((channel, index) => {
-                        const newChannel = { ...channel, id: Date.now() + index };
-                        destPlaylist.channels.push(newChannel);
-                    });
-
-                    sourcePlaylist.channels = sourcePlaylist.channels.filter(ch => !channelIdsToMove.includes(ch.id));
+                if (channelIdsToRemoveFromSource.size > 0) {
+                    // Remove all moved/overwritten channels from the source playlist
+                    sourcePlaylist.channels = sourcePlaylist.channels.filter(ch => !channelIdsToRemoveFromSource.has(ch.id));
 
                     saveAndRenderPlaylists();
-                    showToast(`${channelsToMove.length} کەناڵ گواسترایەوە.`, "success");
+                    const totalTransferred = movedCount + overwrittenCount;
+                    showToast(`${totalTransferred} کەناڵ گواسترایەوە (${overwrittenCount} دانە نوێکرایەوە).`, "success");
 
+                    // Refresh both transfer lists
                     const sourceSearchInput = sourceSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight;
                     const destListEl = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferListLeft : DOMElements.transferListRight;
                     const destSearchInput = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight;
                     
                     renderTransferChannels(sourceListEl, sourcePlaylistId, sourceSearchInput.value);
                     renderTransferChannels(destListEl, destPlaylistId, destSearchInput.value);
-                } else {
-                    showToast("هەموو کەناڵە دیاریکراوەکان پێشتر لە لیستی مەبەستدا هەبوون.", "info");
                 }
             }
 
