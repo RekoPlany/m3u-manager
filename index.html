@@ -111,7 +111,7 @@
         .transfer-column { flex: 1; display: flex; flex-direction: column; min-width: 0; }
         .transfer-column .search-bar { margin-bottom: 1rem; }
         .transfer-playlist-select { width: 100%; padding: 12px; margin-bottom: 1rem; border-radius: var(--border-radius); border: 1px solid var(--border-color); background-color: var(--glass-bg); color: var(--light-color); font-size: 14px; font-family: inherit; backdrop-filter: blur(10px); -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f7f7ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: left 1rem center; background-size: 1em; padding-left: 2.5rem; }
-        .transfer-list { overflow-y: auto; height: calc(100vh - 24rem); padding: 5px; }
+        .transfer-list { overflow-y: auto; height: calc(100vh - 27rem); padding: 5px; }
         .transfer-channel-item { background: transparent; border-radius: 8px; padding: 8px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-color); cursor: default; }
         .transfer-channel-item:hover { background-color: rgba(255,255,255,0.05); }
         .transfer-channel-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary-color); flex-shrink: 0; cursor: pointer; }
@@ -177,9 +177,25 @@
         <div id="transfer-screen" class="screen">
             <header><button id="back-to-home-from-transfer-btn" class="btn back-btn"><i class="fas fa-arrow-right"></i></button><h1>گواستنەوەی کەناڵەکان</h1></header>
             <main class="transfer-container">
-                <div class="transfer-column"><select id="transfer-select-left" class="transfer-playlist-select"><option value="">هەڵبژێرە</option></select><div class="search-bar"><i class="fas fa-search"></i><input type="text" id="transfer-search-left" placeholder="گەڕان..."></div><ul id="transfer-list-left" class="item-list transfer-list"></ul></div>
+                <div class="transfer-column">
+                    <select id="transfer-select-left" class="transfer-playlist-select"><option value="">هەڵبژێرە</option></select>
+                    <div class="search-bar"><i class="fas fa-search"></i><input type="text" id="transfer-search-left" placeholder="گەڕان..."></div>
+                    <div style="padding: 0 5px 10px 5px; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="select-all-left" style="width: 16px; height: 16px; accent-color: var(--primary-color); cursor: pointer;">
+                        <label for="select-all-left" style="font-size: 13px; cursor: pointer;">دیاریکردنی هەموو</label>
+                    </div>
+                    <ul id="transfer-list-left" class="item-list transfer-list"></ul>
+                </div>
                 <div class="transfer-controls"><button id="transfer-to-right-btn" class="btn primary"><i class="fas fa-arrow-left"></i></button><button id="transfer-to-left-btn" class="btn primary"><i class="fas fa-arrow-right"></i></button></div>
-                <div class="transfer-column"><select id="transfer-select-right" class="transfer-playlist-select"><option value="">هەڵبژێرە</option></select><div class="search-bar"><i class="fas fa-search"></i><input type="text" id="transfer-search-right" placeholder="گەڕان..."></div><ul id="transfer-list-right" class="item-list transfer-list"></ul></div>
+                <div class="transfer-column">
+                    <select id="transfer-select-right" class="transfer-playlist-select"><option value="">هەڵبژێرە</option></select>
+                    <div class="search-bar"><i class="fas fa-search"></i><input type="text" id="transfer-search-right" placeholder="گەڕان..."></div>
+                     <div style="padding: 0 5px 10px 5px; display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="select-all-right" style="width: 16px; height: 16px; accent-color: var(--primary-color); cursor: pointer;">
+                        <label for="select-all-right" style="font-size: 13px; cursor: pointer;">دیاریکردنی هەموو</label>
+                    </div>
+                    <ul id="transfer-list-right" class="item-list transfer-list"></ul>
+                </div>
             </main>
         </div>
         <!-- Modals -->
@@ -218,6 +234,8 @@
                 transferToLeftBtn: document.getElementById('transfer-to-left-btn'),
                 transferSearchLeft: document.getElementById('transfer-search-left'),
                 transferSearchRight: document.getElementById('transfer-search-right'),
+                selectAllLeft: document.getElementById('select-all-left'),
+                selectAllRight: document.getElementById('select-all-right'),
                 modalBackdrop: document.getElementById('modal-backdrop'),
                 modalTitle: document.getElementById('modal-title'),
                 modalContent: document.getElementById('modal-content'),
@@ -439,7 +457,6 @@
                     li.className = 'item-card';
                     li.style.animationDelay = `${index * 50}ms`;
                     li.dataset.playlistId = playlist.id;
-                    // Add Dropbox icon if it's a synced playlist
                     const dropboxIcon = playlist.dropboxPath ? `<i class="fab fa-dropbox dropbox-icon" title="هاوکاتکراوە لەگەڵ درۆپبۆکس"></i>` : '';
                     li.innerHTML = `<div class="item-info" data-action="open"><i class="fas fa-list-ul" style="color: var(--primary-color); margin-left:8px;"></i><div><h3>${dropboxIcon}${playlist.name}</h3><p>${playlist.channels.length} کەناڵ</p></div></div><div class="item-actions"><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`;
                     fragment.appendChild(li);
@@ -467,7 +484,6 @@
                     }
                 }
 
-                // If it's a dropbox file, check if it already exists and update it.
                 if (dropboxPath) {
                     const existingPlaylist = playlists.find(p => p.dropboxPath === dropboxPath);
                     if (existingPlaylist) {
@@ -478,7 +494,6 @@
                         playlists.push(newPlaylist);
                     }
                 } else {
-                    // It's a local file import
                     const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels, dropboxPath: null };
                     playlists.push(newPlaylist);
                 }
@@ -516,13 +531,14 @@
                     const url = document.getElementById('channel-url').value; 
                     if (playlist && name && url) { 
                         const channelData = { name, url, logo: document.getElementById('channel-logo').value, group: document.getElementById('channel-group').value }; 
+                        const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
                         if (currentMode === 'addChannel') { 
                             playlist.channels.push({ id: Date.now(), ...channelData }); 
                         } else { 
                             const channel = playlist.channels.find(c => c.id === currentEditingId); 
                             if (channel) Object.assign(channel, channelData); 
                         } 
-                        saveAndRenderChannels(); 
+                        saveAndRenderChannels(openGroups); 
                     } 
                 } 
                 if (shouldHideModal) {
@@ -531,17 +547,121 @@
             }
 
             function saveAndRenderPlaylists() { savePlaylists(); renderPlaylists(DOMElements.playlistSearch.value); }
-            function saveAndRenderChannels() { savePlaylists(); renderChannels(currentPlaylistId); }
+            function saveAndRenderChannels(openGroups = []) { savePlaylists(); renderChannels(currentPlaylistId, DOMElements.channelSearch.value, openGroups); }
             function hideModal() { DOMElements.modalBackdrop.classList.add('hidden'); }
             function showModal(mode, id = null) { currentMode = mode; currentEditingId = id; DOMElements.modalBackdrop.classList.remove('hidden'); DOMElements.modalConfirmBtn.textContent = "پشتڕاستکردنەوە"; let formHtml = ''; if (mode === 'addPlaylist' || mode === 'editPlaylist') { const playlist = mode === 'editPlaylist' ? playlists.find(p => p.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addPlaylist' ? 'دروستکردنی لیستی نوێ' : 'دەستکاری ناوی لیست'; formHtml = `<div class="form-group"><label for="playlist-name">ناوی لیست</label><input type="text" id="playlist-name" value="${playlist ? playlist.name : ''}" placeholder="بۆ نموونە: کەناڵە کوردییەکان"></div>`; } else if (mode === 'addChannel' || mode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const channel = mode === 'editChannel' ? playlist.channels.find(c => c.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addChannel' ? 'زیادکردنی کەناڵی نوێ' : 'دەستکاری کەناڵ'; formHtml = `<div class="form-group"><label for="channel-name">ناوی کەناڵ</label><input type="text" id="channel-name" value="${channel ? channel.name : ''}" placeholder="بۆ نموونە: NRT HD"></div> <div class="form-group"><label for="channel-url">لینکی کەناڵ (URL)</label><input type="text" id="channel-url" value="${channel ? channel.url : ''}" placeholder="http://.../live.m3u8"></div> <div class="form-group"><label for="channel-logo">لینکی لۆگۆ</label><input type="text" id="channel-logo" value="${channel ? channel.logo : ''}" placeholder="http://.../logo.png"></div> <div class="form-group"><label for="channel-group">ناوی گرووپ</label><input type="text" id="channel-group" value="${channel ? channel.group : ''}" placeholder="بۆ نموونە: هەواڵ"></div>`; } DOMElements.modalContent.innerHTML = formHtml; const input = DOMElements.modalContent.querySelector('input'); if (input) setTimeout(() => input.focus(), 100); }
             function showConfirmModal(message, callback) { DOMElements.confirmModalMessage.textContent = message; confirmCallback = callback; DOMElements.confirmModalBackdrop.classList.remove('hidden'); }
             function hideConfirmModal() { DOMElements.confirmModalBackdrop.classList.add('hidden'); confirmCallback = null; }
             function showScreen(screen) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); screen.classList.add('active'); }
-            function renderChannels(playlistId, filter = '') { currentPlaylistId = playlistId; const playlist = playlists.find(p => p.id === playlistId); if (!playlist) { showScreen(DOMElements.homeScreen); return; } DOMElements.playlistTitleHeader.textContent = playlist.name; const container = DOMElements.channelListContainer; container.innerHTML = ''; const fragment = document.createDocumentFragment(); const channelsToDisplay = playlist.channels.filter(c => c.name.toLowerCase().includes(filter.toLowerCase())); const groups = {}; channelsToDisplay.forEach(channel => { const groupTitle = channel.group || 'کەناڵە گشتییەکان'; if (!groups[groupTitle]) { groups[groupTitle] = []; } groups[groupTitle].push(channel); }); if (Object.keys(groups).length === 0 && filter) { container.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ کەناڵێک نەدۆزرایەوە.</p>`; return; } Object.keys(groups).sort().forEach((groupTitle) => { const details = document.createElement('details'); details.className = 'channel-group'; const summary = document.createElement('summary'); summary.innerHTML = `<span class="group-title-text">${groupTitle} (${groups[groupTitle].length})</span><button class="group-delete-btn" data-group-title="${groupTitle}" title="سڕینەوەی گرووپ"><i class="fas fa-trash"></i></button>`; const ul = document.createElement('ul'); ul.className = 'item-list'; groups[groupTitle].forEach((channel) => { const li = document.createElement('li'); li.className = 'item-card'; li.dataset.channelId = channel.id; li.innerHTML = `<div class="item-info"><img src="${channel.logo || ''}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VjZjBmMSI+PHBhdGggZD0iTTIxIDNIM2MtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmg1djJoOHYtMmE1YzEuMSAwIDEuOTktLjkgMS45OS0yTDIzIDVjMC0xLjE C45LTItMi0yem0wIDE0SDNWNWgxOHYxMnoiLz48L3N2Zz4=';"><div><h3>${channel.name}</h3></div></div><div class="item-actions"><button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; ul.appendChild(li); }); details.appendChild(summary); details.appendChild(ul); fragment.appendChild(details); }); container.appendChild(fragment); }
-            function initTransferScreen() { populateTransferDropdowns(); DOMElements.transferListLeft.innerHTML = ''; DOMElements.transferListRight.innerHTML = ''; DOMElements.transferSearchLeft.value = ''; DOMElements.transferSearchRight.value = ''; showScreen(DOMElements.transferScreen); }
+            
+            function renderChannels(playlistId, filter = '', openGroups = []) { 
+                currentPlaylistId = playlistId; 
+                const playlist = playlists.find(p => p.id === playlistId); 
+                if (!playlist) { showScreen(DOMElements.homeScreen); return; } 
+                DOMElements.playlistTitleHeader.textContent = playlist.name; 
+                const container = DOMElements.channelListContainer; 
+                container.innerHTML = ''; 
+                const fragment = document.createDocumentFragment(); 
+                const channelsToDisplay = playlist.channels.filter(c => c.name.toLowerCase().includes(filter.toLowerCase())); 
+                const groups = {}; 
+                channelsToDisplay.forEach(channel => { const groupTitle = channel.group || 'کەناڵە گشتییەکان'; if (!groups[groupTitle]) { groups[groupTitle] = []; } groups[groupTitle].push(channel); }); 
+                if (Object.keys(groups).length === 0 && filter) { container.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ کەناڵێک نەدۆزرایەوە.</p>`; return; } 
+                Object.keys(groups).sort().forEach((groupTitle) => { 
+                    const details = document.createElement('details'); 
+                    if (openGroups.includes(groupTitle)) {
+                        details.open = true;
+                    }
+                    details.className = 'channel-group'; 
+                    const summary = document.createElement('summary'); 
+                    summary.innerHTML = `<span class="group-title-text">${groupTitle} (${groups[groupTitle].length})</span><button class="group-delete-btn" data-group-title="${groupTitle}" title="سڕینەوەی گرووپ"><i class="fas fa-trash"></i></button>`; 
+                    const ul = document.createElement('ul'); 
+                    ul.className = 'item-list'; 
+                    groups[groupTitle].forEach((channel) => { 
+                        const li = document.createElement('li'); 
+                        li.className = 'item-card'; 
+                        li.dataset.channelId = channel.id; 
+                        li.innerHTML = `<div class="item-info"><img src="${channel.logo || ''}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VjZjBmMSI+PHBhdGggZD0iTTIxIDNIM2MtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmg1djJoOHYtMmE1YzEuMSAwIDEuOTktLjkgMS45OS0yTDIzIDVjMC0xLjE C45LTItMi0yem0wIDE0SDNWNWgxOHYxMnoiLz48L3N2Zz4=';"><div><h3>${channel.name}</h3></div></div><div class="item-actions"><button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; 
+                        ul.appendChild(li); 
+                    }); 
+                    details.appendChild(summary); 
+                    details.appendChild(ul); 
+                    fragment.appendChild(details); 
+                }); 
+                container.appendChild(fragment); 
+            }
+            
+            function initTransferScreen() { populateTransferDropdowns(); DOMElements.transferListLeft.innerHTML = ''; DOMElements.transferListRight.innerHTML = ''; DOMElements.transferSearchLeft.value = ''; DOMElements.transferSearchRight.value = ''; DOMElements.selectAllLeft.checked = false; DOMElements.selectAllRight.checked = false; showScreen(DOMElements.transferScreen); }
             function populateTransferDropdowns() { const selects = [DOMElements.transferSelectLeft, DOMElements.transferSelectRight]; selects.forEach(select => { const currentValue = select.value; select.innerHTML = '<option value="">هەڵبژێرە...</option>'; playlists.forEach(p => { const option = document.createElement('option'); option.value = p.id; option.textContent = p.name; select.appendChild(option); }); select.value = currentValue; }); }
-            function renderTransferChannels(listElement, playlistId, filter = '') { listElement.innerHTML = ''; if (!playlistId) return; const playlist = playlists.find(p => p.id === Number(playlistId)); if (!playlist) return; const fragment = document.createDocumentFragment(); const channelsToRender = playlist.channels.filter(ch => ch.name.toLowerCase().includes(filter.toLowerCase())); channelsToRender.forEach(channel => { const li = document.createElement('li'); li.className = 'transfer-channel-item'; li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}">${channel.name}</label>`; fragment.appendChild(li); }); listElement.appendChild(fragment); }
-            function handleChannelTransfer(sourceListEl, sourceSelectEl, destSelectEl) { const sourcePlaylistId = Number(sourceSelectEl.value); const destPlaylistId = Number(destSelectEl.value); if (!sourcePlaylistId || !destPlaylistId || sourcePlaylistId === destPlaylistId) { showToast("تکایە دوو لیستی جیاواز هەڵبژێرە.", "error"); return; } const sourcePlaylist = playlists.find(p => p.id === sourcePlaylistId); const destPlaylist = playlists.find(p => p.id === destPlaylistId); const selectedCheckboxes = sourceListEl.querySelectorAll('input[type="checkbox"]:checked'); if (selectedCheckboxes.length === 0) { showToast("هیچ کەناڵێک دیاری نەکراوە.", "error"); return; } let transferredCount = 0; const destChannelUrls = new Set(destPlaylist.channels.map(ch => ch.url)); selectedCheckboxes.forEach(checkbox => { const channelId = Number(checkbox.dataset.channelId); const channelToCopy = sourcePlaylist.channels.find(ch => ch.id === channelId); if (channelToCopy && !destChannelUrls.has(channelToCopy.url)) { const newChannel = { ...channelToCopy, id: Date.now() + transferredCount }; destPlaylist.channels.push(newChannel); destChannelUrls.add(newChannel.url); transferredCount++; } }); if (transferredCount > 0) { saveAndRenderPlaylists(); showToast(`${transferredCount} کەناڵ گواسترایەوە.`, "success"); const destListEl = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferListLeft : DOMElements.transferListRight; const destSearchInput = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight; renderTransferChannels(destListEl, destPlaylistId, destSearchInput.value); selectedCheckboxes.forEach(cb => cb.checked = false); } else { showToast("کەناڵەکان پێشتر هەبوون.", "error"); } }
+            
+            function renderTransferChannels(listElement, playlistId, filter = '') { 
+                listElement.innerHTML = ''; 
+                if (!playlistId) return; 
+                const playlist = playlists.find(p => p.id === Number(playlistId)); 
+                if (!playlist) return; 
+                
+                const listId = listElement.id;
+                if (listId === 'transfer-list-left') DOMElements.selectAllLeft.checked = false;
+                else if (listId === 'transfer-list-right') DOMElements.selectAllRight.checked = false;
+
+                const fragment = document.createDocumentFragment(); 
+                const channelsToRender = playlist.channels.filter(ch => ch.name.toLowerCase().includes(filter.toLowerCase())); 
+                channelsToRender.forEach(channel => { const li = document.createElement('li'); li.className = 'transfer-channel-item'; li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}">${channel.name}</label>`; fragment.appendChild(li); }); 
+                listElement.appendChild(fragment); 
+            }
+
+            function handleChannelTransfer(sourceListEl, sourceSelectEl, destSelectEl) {
+                const sourcePlaylistId = Number(sourceSelectEl.value);
+                const destPlaylistId = Number(destSelectEl.value);
+                if (!sourcePlaylistId || !destPlaylistId || sourcePlaylistId === destPlaylistId) {
+                    showToast("تکایە دوو لیستی جیاواز هەڵبژێرە.", "error");
+                    return;
+                }
+
+                const sourcePlaylist = playlists.find(p => p.id === sourcePlaylistId);
+                const destPlaylist = playlists.find(p => p.id === destPlaylistId);
+                const selectedCheckboxes = sourceListEl.querySelectorAll('input[type="checkbox"]:checked');
+                
+                if (selectedCheckboxes.length === 0) {
+                    showToast("هیچ کەناڵێک دیاری نەکراوە.", "error");
+                    return;
+                }
+
+                const destChannelUrls = new Set(destPlaylist.channels.map(ch => ch.url));
+                const channelIdsToMove = [];
+                const channelsToMove = [];
+
+                selectedCheckboxes.forEach(checkbox => {
+                    const channelId = Number(checkbox.dataset.channelId);
+                    const channelToMove = sourcePlaylist.channels.find(ch => ch.id === channelId);
+                    if (channelToMove && !destChannelUrls.has(channelToMove.url)) {
+                        channelIdsToMove.push(channelId);
+                        channelsToMove.push(channelToMove);
+                        destChannelUrls.add(channelToMove.url); 
+                    }
+                });
+
+                if (channelsToMove.length > 0) {
+                    channelsToMove.forEach((channel, index) => {
+                        const newChannel = { ...channel, id: Date.now() + index };
+                        destPlaylist.channels.push(newChannel);
+                    });
+
+                    sourcePlaylist.channels = sourcePlaylist.channels.filter(ch => !channelIdsToMove.includes(ch.id));
+
+                    saveAndRenderPlaylists();
+                    showToast(`${channelsToMove.length} کەناڵ گواسترایەوە.`, "success");
+
+                    const sourceSearchInput = sourceSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight;
+                    const destListEl = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferListLeft : DOMElements.transferListRight;
+                    const destSearchInput = destSelectEl === DOMElements.transferSelectLeft ? DOMElements.transferSearchLeft : DOMElements.transferSearchRight;
+                    
+                    renderTransferChannels(sourceListEl, sourcePlaylistId, sourceSearchInput.value);
+                    renderTransferChannels(destListEl, destPlaylistId, destSearchInput.value);
+                } else {
+                    showToast("هەموو کەناڵە دیاریکراوەکان پێشتر لە لیستی مەبەستدا هەبوون.", "info");
+                }
+            }
+
 
             function initializeApp() {
                 handleAuthRedirect();
@@ -592,8 +712,9 @@
                         e.preventDefault();
                         const groupTitle = groupDeleteBtn.dataset.groupTitle;
                         showConfirmModal(`دڵنیایت لە سڕینەوەی گرووپی "${groupTitle}"؟`, () => {
+                            const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle).filter(title => title !== groupTitle);
                             playlist.channels = playlist.channels.filter(ch => (ch.group || 'کەناڵە گشتییەکان') !== groupTitle);
-                            saveAndRenderChannels();
+                            saveAndRenderChannels(openGroups);
                         });
                         return;
                     }
@@ -604,8 +725,9 @@
                         if (e.target.closest('.play-btn')) { /* Logic for playing video */ }
                         else if (e.target.closest('.edit-btn')) { showModal('editChannel', channelId); }
                         else if (e.target.closest('.delete-btn')) {
+                            const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
                             playlist.channels = playlist.channels.filter(c => c.id !== channelId);
-                            saveAndRenderChannels();
+                            saveAndRenderChannels(openGroups);
                         }
                     }
                 });
@@ -628,6 +750,16 @@
                 DOMElements.transferSearchRight.addEventListener('input', debounce(e => renderTransferChannels(DOMElements.transferListRight, DOMElements.transferSelectRight.value, e.target.value), 300));
                 DOMElements.transferToRightBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListLeft, DOMElements.transferSelectLeft, DOMElements.transferSelectRight));
                 DOMElements.transferToLeftBtn.addEventListener('click', () => handleChannelTransfer(DOMElements.transferListRight, DOMElements.transferSelectRight, DOMElements.transferSelectLeft));
+                
+                DOMElements.selectAllLeft.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    DOMElements.transferListLeft.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+                });
+
+                DOMElements.selectAllRight.addEventListener('change', (e) => {
+                    const isChecked = e.target.checked;
+                    DOMElements.transferListRight.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+                });
             }
 
             initializeApp();
