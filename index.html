@@ -473,7 +473,24 @@
                 DOMElements.modalConfirmBtn.disabled = true;
 
                 try {
-                    const files = await listDropboxFiles();
+                    // Use the correct Dropbox API endpoint for listing files
+                    const response = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${dropboxToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ path: '' }) // List files in the root directory
+                    });
+
+                    if (!response.ok) {
+                        await handleDropboxError(response);
+                        return;
+                    }
+
+                    const data = await response.json();
+                    const files = data.entries.filter(entry => entry.name.endsWith('.m3u') || entry.name.endsWith('.m3u8'));
+
                     if (files.length === 0) {
                         DOMElements.modalContent.innerHTML = '<p style="text-align:center;">هیچ فایلێکی .m3u یان .m3u8 لەناو فۆڵدەری سەرەکی درۆپبۆکسەکەت نەدۆزرایەوە.</p>';
                         return;
@@ -508,6 +525,7 @@
                 
                 const m3uContent = generateM3uContent(playlist);
                 try {
+                    // Use the correct Dropbox API endpoint for uploading files
                     const response = await fetch('https://content.dropboxapi.com/2/files/upload', {
                         method: 'POST',
                         headers: {
@@ -569,7 +587,7 @@
             }
 
             function debounce(func, delay = 300) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => { func.apply(this, args); }, delay); }; }
-            function savePlaylists() { localStorage.setItem('m3u-playlists-v2', JSON.stringify(playlists)); }
+            function savePlaylists() { localStorage.setItem('m3u-playlists-v2', JSON.JSON.stringify(playlists)); }
             function loadPlaylists() { const storedPlaylists = localStorage.getItem('m3u-playlists-v2'); if (storedPlaylists) { playlists = JSON.parse(storedPlaylists); } }
             
             function renderPlaylists(filter = '') {
@@ -614,16 +632,16 @@
                 }
 
                 if (dropboxPath) {
-                    const existingPlaylist = playlists.find(p => p.dropboxPath === dropboxPath);
+                    const existingPlaylist = playlists.find(p => p.dropboxPath ===dropboxPath);
                     if (existingPlaylist) {
                         existingPlaylist.name = fileName.replace(/\.m3u8?$/, '');
                         existingPlaylist.channels = channels;
                     } else {
-                        const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels, dropboxPath };
+                        const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels,dropboxPath };
                         playlists.push(newPlaylist);
                     }
                 } else {
-                    const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels, dropboxPath: null };
+                    const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels,dropboxPath: null };
                     playlists.push(newPlaylist);
                 }
                 
@@ -649,7 +667,7 @@
                     }
                 } else if (currentMode === 'addPlaylist') { 
                     const name = document.getElementById('playlist-name').value; 
-                    if (name) { playlists.push({ id: Date.now(), name: name, channels: [], dropboxPath: null }); saveAndRenderPlaylists(); } 
+                    if (name) { playlists.push({ id: Date.now(), name: name, channels: [],dropboxPath: null }); saveAndRenderPlaylists(); } 
                 } else if (currentMode === 'editPlaylist') { 
                     const playlist = playlists.find(p => p.id === currentEditingId); 
                     const name = document.getElementById('playlist-name').value; 
@@ -709,7 +727,7 @@
                         const li = document.createElement('li'); 
                         li.className = 'item-card'; 
                         li.dataset.channelId = channel.id; 
-                        li.innerHTML = `<div class="item-info" data-action="open-info"><img src="${channel.logo || ''}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VjZjBmMSI+PHBhdGggZD0iTTIxIDNIM2MtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmg1djJoOHYtMmE1YzEuMSAwIDEuOTktLjkgMS45OS0yTDIzIDVjMC0xLjE C45LTItMi0yem0wIDE0SDNWNWgxOHYxMnoiLz48L3N2Zz4=';"><div><h3>${channel.name}</h3></div></div><div class="item-actions"><button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; 
+                        li.innerHTML = `<div class="item-info" data-action="open-info"><img src="${channel.logo || ''}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VjZjBmMSI+PHBhdGggZD0iTTIxIDNIM2EtMS41IDAtMi41LjUtMi41IDJ2MTJjMCAxLjYuNSAyLjUgMi41IDJoMTZjMS41IDAgMi41LTEuNSAyLjUtMi41VjVjMC0xLjUtMS0yLjUtMi41LTJ6bTAgMTUuNUg0VjVIMjF2MTQuNXoiLz48L3N2Zz4=';"><div><h3>${channel.name}</h3></div></div><div class="item-actions"><button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; 
                         ul.appendChild(li); 
                     }); 
                     details.appendChild(summary); 
@@ -850,7 +868,7 @@
 
             function proToolLoadSettings() { const savedSettings = localStorage.getItem('m3uProSettings'); appSettings = savedSettings ? JSON.parse(savedSettings) : JSON.parse(JSON.stringify(defaultSettings)); proToolRenderSettingsUI(); }
             function proToolSaveSettings() { appSettings.defaultGroup = proToolElements.defaultGroupSelect.value; localStorage.setItem('m3uProSettings', JSON.stringify(appSettings)); showToast('ڕێکخستنەکان پاشەکەوت کران!', 'success'); }
-            function proToolResetSettings() { if (confirm('ئایا دڵنیایت دەتەوێت هەموو ڕێکخستنەکان بگەڕێنیتەوە دۆخی سەرەتا؟')) { localStorage.removeItem('m3uProSettings'); proToolLoadSettings(); showToast('ڕێکخستنەکان گەڕێنرانەوە دۆخی سەرەتا.', 'success'); } }
+            function proToolResetSettings() { if (confirm('ئایا دڵنیایت دەتەوێت هەموو ڕێکخستنەکان بگەڕێنیتەوە دۆخی سەرەتا؟')) { localStorage.removeItem('m3uProSettings'); proToolLoadSettings(); showToast('ڕێکخستنەکان گەڕێنراوە دۆخی سەرەتا.', 'success'); } }
             function proToolRenderSettingsUI() {
                 proToolElements.settingsContainer.innerHTML = ''; proToolElements.defaultGroupSelect.innerHTML = '';
                 const allGroups = Object.keys(appSettings.categories);
@@ -1153,6 +1171,20 @@
                 DOMElements.addPlaylistBtn.addEventListener('click', () => showModal('addPlaylist'));
                 DOMElements.importPlaylistBtn.addEventListener('click', () => { const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = '.m3u,.m3u8'; fileInput.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = event => parseM3u(file.name, event.target.result); reader.readAsText(file); }; fileInput.click(); });
                 
+                // Dropbox Fetch/Save Modal Buttons
+                DOMElements.dropboxFetchBtn.addEventListener('click', showFetchFromDropboxModal);
+                DOMElements.dropboxSaveBtn.addEventListener('click', () => {
+                    if (!dropboxToken) { showToast('تکایە سەرەتا پەیوەست بە.', 'error'); return; }
+                    currentMode = 'saveToDropbox';
+                    DOMElements.modalBackdrop.classList.remove('hidden');
+                    DOMElements.modalTitle.textContent = "ناردن بۆ درۆپبۆکس";
+                    let formHtml = '<div class="form-group"><label for="playlist-select-dropbox">لیست</label><select id="playlist-select-dropbox">';
+                    playlists.forEach(p => { formHtml += `<option value="${p.id}">${p.name}</option>`; });
+                    formHtml += '</select></div><div class="form-group"><label for="dropbox-filename">ناوی فایل (لەگەڵ path, دابنێ: /my_lists/my_playlist.m3u)</label><input type="text" id="dropbox-filename" placeholder="/my_lists/my_playlist.m3u"></div>';
+                    DOMElements.modalContent.innerHTML = formHtml;
+                    DOMElements.modalConfirmBtn.textContent = "ناردن";
+                });
+
                 DOMElements.transferBtn.addEventListener('click', initTransferScreen);
                 
                 DOMElements.transferSelectLeft.addEventListener('change', (e) => {
