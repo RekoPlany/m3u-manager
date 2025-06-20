@@ -204,7 +204,7 @@
             <header class="main-header">
                 <div class="logo-title"><i class="fas fa-layer-group"></i><h1>M3U Manager Pro</h1></div>
                 <div class="main-actions">
-                    <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span></span></button>
+                    <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span>پەیوەست بوون بە دڕۆپبۆکس</span></button>
                     <button id="pro-tool-btn" class="btn primary"><i class="fas fa-cogs"></i></button>
                     <button id="transfer-btn" class="btn primary"><i class="fas fa-exchange-alt"></i></button>
                     <button id="import-playlist-btn" class="btn primary"><i class="fas fa-upload"></i></button>
@@ -212,9 +212,9 @@
                 </div>
             </header>
             <div id="dropbox-controls">
-                <button id="dropbox-fetch-btn" class="btn success-outline"><i class="fas fa-cloud-download-alt"></i> هێنان</button>
-                <button id="dropbox-save-btn" class="btn success-outline"><i class="fas fa-cloud-upload-alt"></i> پاشەکەوتکردن</button>
-                <button id="dropbox-disconnect-btn" class="btn danger-outline"><i class="fas fa-unlink"></i> پچڕاندن</button>
+                <button id="dropbox-fetch-btn" class="btn success-outline"><i class="fas fa-cloud-download-alt"></i> هێنان لە درۆپبۆکس</button>
+                <button id="dropbox-save-btn" class="btn success-outline"><i class="fas fa-cloud-upload-alt"></i> پاشەکەوتکردن لە درۆپبۆکس</button>
+                <button id="dropbox-disconnect-btn" class="btn danger-outline"><i class="fas fa-unlink"></i> پچڕاندنی درۆپبۆکس</button>
             </div>
             <main>
                 <div class="search-bar"><i class="fas fa-search"></i><input type="text" id="playlist-search" placeholder="گەڕان..."></div>
@@ -246,7 +246,7 @@
                     </div>
                     <ul id="transfer-list-left" class="item-list transfer-list"></ul>
                 </div>
-                <div class="transfer-controls"><button id="transfer-to-right-btn" class="btn primary"><i class="fas fa-arrow-left"></i></button><button id="transfer-to-left-btn" class="btn primary"><i class="fas fa-arrow-right"></i></button></div>
+                <div class="transfer-controls"><button id="transfer-to-left-btn" class="btn primary"><i class="fas fa-arrow-left"></i></button><button id="transfer-to-right-btn" class="btn primary"><i class="fas fa-arrow-right"></i></button></div>
                 <div class="transfer-column">
                     <select id="transfer-select-right" class="transfer-playlist-select"><option value="">هەڵبژێرە</option></select>
                     <div class="search-bar"><i class="fas fa-search"></i><input type="text" id="transfer-search-right" placeholder="گەڕان..."></div>
@@ -399,8 +399,8 @@
                 transferSelectRight: document.getElementById('transfer-select-right'),
                 transferListLeft: document.getElementById('transfer-list-left'),
                 transferListRight: document.getElementById('transfer-list-right'),
-                transferToRightBtn: document.getElementById('transfer-to-right-btn'),
-                transferToLeftBtn: document.getElementById('transfer-to-left-btn'),
+                transferToRightBtn: document.getElementById('transfer-to-right-btn'), // Icon is left arrow (←) moving channels from right list to left list
+                transferToLeftBtn: document.getElementById('transfer-to-left-btn'),   // Icon is right arrow (→) moving channels from left list to right list
                 transferSearchLeft: document.getElementById('transfer-search-left'),
                 transferSearchRight: document.getElementById('transfer-search-right'),
                 selectAllLeft: document.getElementById('select-all-left'),
@@ -424,31 +424,40 @@
             let playlists = [];
             let currentPlaylistId = null;
             let currentMode = '';
+            let currentEditingId = null; // To store the ID of the playlist or channel being edited
             let confirmCallback = null;
             let hlsInstance;
 
-            const DROPBOX_CLIENT_ID = 'qq6qyxnq5jr7ei1';
-            const REDIRECT_URI = window.location.href.split('#')[0];
+            const DROPBOX_CLIENT_ID = 'qq6qyxnq5jr7ei1'; // Keep your actual client ID
+            const REDIRECT_URI = window.location.href.split('#')[0]; // Use the current page URL as redirect URI
             let dropboxToken = localStorage.getItem('dropboxToken');
 
+            // --- Dropbox API Handling ---
+
             async function handleDropboxError(response) {
-                if (response.status === 401) {
-                    disconnectFromDropbox();
+                if (response.status === 401) { // Unauthorized
+                    disconnectFromDropbox(); // Clear token and update UI
                     throw new Error("تۆکنەکەت بەسەرچووە، تکایە دووبارە پەیوەست بە.");
                 }
-                const errorHeader = response.headers.get("dropbox-api-result");
-                if (errorHeader) {
-                    try {
+                // Attempt to parse Dropbox error response
+                try {
+                    const errorHeader = response.headers.get("dropbox-api-result");
+                    if (errorHeader) {
                         const errorResult = JSON.parse(errorHeader);
                         const errorTag = errorResult.error?.['.tag'];
                         if (errorTag === 'path' && errorResult.error.path?.['.tag'] === 'not_found') {
-                           throw new Error("فایل لە درۆپبۆکس نەدۆزرایەوە.");
+                           throw new Error("فایل یان فۆڵدەر لە درۆپبۆکس نەدۆزرایەوە.");
+                        }
+                        if (errorTag === 'access_denied') {
+                            throw new Error("ڕێگەپێنەدان ڕەت کرایەوە لەلایەن بەکارهێنەر.");
                         }
                         throw new Error(`کێشە لە درۆپبۆکس: ${errorResult.error_summary || 'هەڵەیەکی نادیار'}`);
-                    } catch (e) {}
+                    }
+                } catch (e) {
+                    // If parsing fails, fall back to generic error message
+                    const errorText = await response.text();
+                    throw new Error(`کێشەیەکی چاوەڕواننەکراو ڕوویدا (کۆدی ${response.status}): ${errorText || 'هەڵەیەکی نەزانراو'}`);
                 }
-                const errorText = await response.text();
-                throw new Error(errorText || `کێشەیەکی چاوەڕواننەکراو ڕوویدا (کۆدی ${response.status})`);
             }
 
             function connectToDropbox() {
@@ -462,9 +471,29 @@
                 showToast("پەیوەندی لەگەڵ درۆپبۆکس پچڕا.", "info");
                 updateDropboxUI();
             }
-            
-            async function showFetchFromDropboxModal() {
-                if (!dropboxToken) { showToast('تکایە سەرەتا پەیوەست بە.', 'error'); return; }
+
+            async function listDropboxFiles() {
+                if (!dropboxToken) throw new Error("تۆکنی درۆپبۆکس بوونی نییە.");
+                try {
+                    const response = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${dropboxToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ path: '' }) // List files in the root folder
+                    });
+                    if (!response.ok) await handleDropboxError(response);
+                    const data = await response.json();
+                    const m3uFiles = data.entries.filter(entry => entry.name.toLowerCase().endsWith('.m3u') || entry.name.toLowerCase().endsWith('.m3u8'));
+                    return m3uFiles;
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    throw error; // Re-throw to be caught by the caller
+                }
+            }
+
+            async function fetchFromDropboxModal() {
                 currentMode = 'fetchFromDropbox';
                 DOMElements.modalBackdrop.classList.remove('hidden');
                 DOMElements.modalTitle.textContent = "هێنان لە درۆپبۆکس";
@@ -480,24 +509,53 @@
                     }
                     DOMElements.modalConfirmBtn.disabled = false;
                     let options = files.map(file => `<option value="${file.path_display}">${file.name}</option>`).join('');
-                    DOMElements.modalContent.innerHTML = `<div class="form-group"><label for="file-select-dropbox">فایلێک هەڵبژێرە</label><select id="file-select-dropbox">${options}</select></div>`;
+                    DOMElements.modalContent.innerHTML = `
+                        <div class="form-group">
+                            <label for="file-select-dropbox">فایلێک هەڵبژێرە:</label>
+                            <select id="file-select-dropbox">${options}</select>
+                        </div>
+                    `;
                 } catch (error) {
                     DOMElements.modalContent.innerHTML = `<p style="text-align:center; color: var(--danger-color);">${error.message}</p>`;
                 }
             }
 
+            async function downloadFromDropbox(filePath) {
+                 if (!dropboxToken) throw new Error("تۆکنی درۆپبۆکس بوونی نییە.");
+                 if (!filePath || !filePath.startsWith('/')) throw new Error("ناوی فایل نادروستە.");
+
+                try {
+                    const response = await fetch('https://api.dropboxapi.com/2/files/download', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${dropboxToken}`,
+                            'Dropbox-API-Arg': JSON.stringify({ path: filePath })
+                        }
+                    });
+                    if (!response.ok) await handleDropboxError(response);
+                    const content = await response.text();
+                    const fileName = filePath.split('/').pop();
+                    parseM3u(fileName, content, filePath); // Pass filePath to associate it with the playlist
+                    showToast(`فایلی "${fileName}" لە درۆپبۆکس هێنرا.`, 'success');
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    throw error;
+                }
+            }
+            
             async function saveToDropbox(playlistId, filePath, isAutoSave = false) {
                 if (!dropboxToken) { 
-                    if(!isAutoSave) showToast('تکایە سەرەتا پەیوەست بە.', 'error'); 
+                    if (!isAutoSave) showToast('تکایە سەرەتا پەیوەست بە.', 'error'); 
                     return; 
                 }
+                // Ensure filePath starts with a slash for Dropbox root or a subdirectory
                 if (!filePath || !filePath.startsWith('/')) { 
-                     if(!isAutoSave) showToast('ناوی فایل نادروستە، پێویستە بە / دەست پێبکات.', 'error');
+                     if (!isAutoSave) showToast('ناوی فایل نادروستە، پێویستە بە / دەست پێبکات.', 'error');
                      return; 
                 }
                 const playlist = playlists.find(p => p.id === playlistId);
                 if (!playlist) { 
-                     if(!isAutoSave) showToast("لیستی دیاریکراو نەدۆزرایەوە.", "error"); 
+                     if (!isAutoSave) showToast("لیستی دیاریکراو نەدۆزرایەوە.", "error"); 
                      return; 
                 }
                 if (isAutoSave) {
@@ -512,14 +570,21 @@
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${dropboxToken}`,
-                            'Dropbox-API-Arg': JSON.stringify({ path: filePath, mode: 'overwrite' }),
+                            'Dropbox-API-Arg': JSON.stringify({ path: filePath, mode: 'overwrite' }), // Overwrite if exists
                             'Content-Type': 'application/octet-stream'
                         },
                         body: m3uContent
                     });
                     if (!response.ok) await handleDropboxError(response);
-                    await response.json();
-                    if(!isAutoSave) showToast(`"${playlist.name}" لە ${filePath} پاشەکەوت کرا`, 'success');
+                    const result = await response.json();
+                    if (result && result.id) { // Check if upload was successful
+                         if (!isAutoSave) showToast(`"${playlist.name}" لە ${filePath} پاشەکەوت کرا`, 'success');
+                         // Update playlist's dropboxPath if it was newly saved or changed
+                         playlist.dropboxPath = filePath; 
+                         savePlaylists(); // Save the updated playlist with its path
+                    } else {
+                         throw new Error("هەڵەیەک لە پاشەکەوتکردنی فایل ڕوویدا.");
+                    }
                 } catch (error) {
                     showToast(error.message, 'error');
                 }
@@ -529,9 +594,11 @@
                 if (dropboxToken) {
                     DOMElements.dropboxConnectBtn.style.display = 'none';
                     DOMElements.dropboxControls.style.display = 'flex';
+                    DOMElements.dropboxConnectBtn.querySelector('span').textContent = 'پەیوەست کراوە';
                 } else {
                     DOMElements.dropboxConnectBtn.style.display = 'inline-flex';
                     DOMElements.dropboxControls.style.display = 'none';
+                    DOMElements.dropboxConnectBtn.querySelector('span').textContent = '';
                 }
             }
 
@@ -541,6 +608,7 @@
                 if (token) {
                     dropboxToken = token;
                     localStorage.setItem('dropboxToken', token);
+                    // Remove the hash from the URL to clean it up
                     window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
                     showToast('بە سەرکەوتوویی پەیوەست کرا!', 'success');
                 }
@@ -549,7 +617,7 @@
             function showToast(message, type = 'success', duration = 3000) {
                 const toast = document.createElement('div');
                 toast.className = `toast ${type}`;
-                const icon = type === 'success' ? 'fa-check-circle' : 'fa-times-circle';
+                const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-times-circle' : type === 'info' ? 'fa-info-circle' : '';
                 toast.innerHTML = `<i class="fas ${icon}"></i><span>${message}</span>`;
                 
                 const removeToast = () => {
@@ -568,62 +636,133 @@
                 DOMElements.toastContainer.prepend(toast);
             }
 
-            function debounce(func, delay = 300) { let timeout; return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => { func.apply(this, args); }, delay); }; }
-            function savePlaylists() { localStorage.setItem('m3u-playlists-v2', JSON.stringify(playlists)); }
-            function loadPlaylists() { const storedPlaylists = localStorage.getItem('m3u-playlists-v2'); if (storedPlaylists) { playlists = JSON.parse(storedPlaylists); } }
+            function debounce(func, delay = 300) { 
+                let timeout; 
+                return (...args) => { 
+                    clearTimeout(timeout); 
+                    timeout = setTimeout(() => { 
+                        func.apply(this, args); 
+                    }, delay); 
+                }; 
+            }
+            
+            function savePlaylists() { 
+                localStorage.setItem('m3u-playlists-v2', JSON.stringify(playlists)); 
+            }
+            
+            function loadPlaylists() { 
+                const storedPlaylists = localStorage.getItem('m3u-playlists-v2'); 
+                if (storedPlaylists) { 
+                    try {
+                        playlists = JSON.parse(storedPlaylists); 
+                    } catch (e) {
+                        console.error("Failed to parse playlists from localStorage:", e);
+                        playlists = []; // Reset if corrupted
+                    }
+                } 
+            }
             
             function renderPlaylists(filter = '') {
                 const list = DOMElements.playlistList;
                 list.innerHTML = '';
                 const fragment = document.createDocumentFragment();
                 const filteredPlaylists = playlists.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+                
                 if (filteredPlaylists.length === 0) {
                     list.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ لیستێک نییە. یەکێکی نوێ دروست بکە!</p>`;
                     return;
                 }
+                
                 filteredPlaylists.forEach((playlist, index) => {
                     const li = document.createElement('li');
                     li.className = 'item-card';
                     li.style.animationDelay = `${index * 50}ms`;
                     li.dataset.playlistId = playlist.id;
                     const dropboxIcon = playlist.dropboxPath ? `<i class="fab fa-dropbox dropbox-icon" title="هاوکاتکراوە لەگەڵ درۆپبۆکس"></i>` : '';
-                    li.innerHTML = `<div class="item-info" data-action="open"><i class="fas fa-list-ul" style="color: var(--primary-color); margin-left:8px;"></i><div><h3>${dropboxIcon}${playlist.name}</h3><p>${playlist.channels.length} کەناڵ</p></div></div><div class="item-actions"><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`;
+                    li.innerHTML = `
+                        <div class="item-info" data-action="open">
+                            <i class="fas fa-list-ul" style="color: var(--primary-color); margin-left:8px;"></i>
+                            <div>
+                                <h3>${dropboxIcon}${playlist.name}</h3>
+                                <p>${playlist.channels.length} کەناڵ</p>
+                            </div>
+                        </div>
+                        <div class="item-actions">
+                            <button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button>
+                            <button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button>
+                        </div>
+                    `;
                     fragment.appendChild(li);
                 });
                 list.appendChild(fragment);
             }
             
-            function generateM3uContent(playlist) { let m3uContent = "#EXTM3U\n"; playlist.channels.forEach(ch => { const logo = ch.logo ? ` tvg-logo="${ch.logo}"` : ''; const group = ch.group ? ` group-title="${ch.group}"` : ''; m3uContent += `#EXTINF:-1${logo}${group},${ch.name}\n`; m3uContent += `${ch.url}\n`; }); return m3uContent; }
+            function generateM3uContent(playlist) { 
+                let m3uContent = "#EXTM3U\n"; 
+                playlist.channels.forEach(ch => { 
+                    const logo = ch.logo ? ` tvg-logo="${ch.logo}"` : ''; 
+                    const group = ch.group ? ` group-title="${ch.group}"` : ''; 
+                    // Ensure the info line is correctly formatted, handling potential extra commas in channel names
+                    let channelName = ch.name.replace(/#/g, '_').replace(/,/g, ';'); // Sanitize name
+                    m3uContent += `#EXTINF:-1${logo}${group},${channelName}\n`; 
+                    m3uContent += `${ch.url}\n`; 
+                }); 
+                return m3uContent; 
+            }
 
             function parseM3u(fileName, content, dropboxPath = null) {
-                if (!content.startsWith('#EXTM3U')) { showToast('فایلی M3U نادروستە.', 'error'); return; }
+                if (!content || !content.startsWith('#EXTM3U')) { 
+                    showToast('فایلەکە نادروستە یان بەتاڵە. دەبێت بە #EXTM3U دەست پێبکات.', 'error'); 
+                    return; 
+                }
                 
                 const channels = [];
                 const lines = content.split(/[\r\n]+/);
+                let currentChannel = null;
+
                 for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].startsWith('#EXTINF:')) {
-                        const infoLine = lines[i];
-                        const urlLine = lines[i + 1] || '';
-                        if (urlLine && (urlLine.startsWith('http') || urlLine.startsWith('rtmp'))) {
-                            const name = (infoLine.match(/,(.*)/) || [])[1]?.trim() || 'Unknown';
-                            const logo = (infoLine.match(/tvg-logo="([^"]*)"/) || [])[1] || '';
-                            const group = (infoLine.match(/group-title="([^"]*)"/) || [])[1] || '';
-                            channels.push({ id: Date.now() + i, name, url: urlLine.trim(), logo, group });
+                    const line = lines[i].trim();
+                    if (line.startsWith('#EXTINF:')) {
+                        const infoMatch = line.match(/#EXTINF:-1(?: tvg-logo="([^"]*)"|)(?: group-title="([^"]*)"|),(.*)/);
+                        if (infoMatch) {
+                            const logo = infoMatch[1] || '';
+                            const group = infoMatch[2] || '';
+                            const name = infoMatch[3] ? infoMatch[3].trim() : 'Unknown Channel';
+                            
+                            // Look ahead for the URL
+                            let url = '';
+                            for (let j = i + 1; j < lines.length; j++) {
+                                const nextLine = lines[j].trim();
+                                if (nextLine && (nextLine.startsWith('http') || nextLine.startsWith('rtmp') || nextLine.startsWith('udp:') || nextLine.startsWith('rtsp:'))) {
+                                    url = nextLine;
+                                    i = j; // Advance outer loop to the line after the URL
+                                    break;
+                                }
+                            }
+                            
+                            if (url) {
+                                channels.push({ id: Date.now() + i, name, url, logo, group });
+                            }
                         }
                     }
                 }
 
+                const baseName = fileName.replace(/\.m3u8?$/, ''); // Remove extension for playlist name
+                
                 if (dropboxPath) {
+                    // Check if a playlist with this dropboxPath already exists
                     const existingPlaylist = playlists.find(p => p.dropboxPath === dropboxPath);
                     if (existingPlaylist) {
-                        existingPlaylist.name = fileName.replace(/\.m3u8?$/, '');
-                        existingPlaylist.channels = channels;
+                        existingPlaylist.name = baseName; // Update name if it changed
+                        existingPlaylist.channels = channels; // Update channels
                     } else {
-                        const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels, dropboxPath };
+                        // If not, create a new playlist
+                        const newPlaylist = { id: Date.now(), name: baseName, channels, dropboxPath };
                         playlists.push(newPlaylist);
                     }
                 } else {
-                    const newPlaylist = { id: Date.now(), name: fileName.replace(/\.m3u8?$/, ''), channels, dropboxPath: null };
+                    // Creating a new playlist from local import
+                    const newPlaylist = { id: Date.now(), name: baseName, channels, dropboxPath: null };
                     playlists.push(newPlaylist);
                 }
                 
@@ -633,43 +772,85 @@
             function handleConfirm() {
                 let shouldHideModal = true;
                 if (currentMode === 'saveToDropbox') {
-                    const selectedPlaylistId = document.getElementById('playlist-select-dropbox').value;
-                    const dropboxFileName = document.getElementById('dropbox-filename').value;
-                    if (dropboxFileName && dropboxFileName.startsWith('/')) {
+                    const selectedPlaylistId = document.getElementById('playlist-select-dropbox').value; // Needs to be implemented
+                    const dropboxFileNameInput = document.getElementById('dropbox-filename'); // Needs to be implemented
+                    const dropboxFileName = dropboxFileNameInput ? dropboxFileNameInput.value : null;
+                    
+                    if (selectedPlaylistId && dropboxFileName && dropboxFileName.startsWith('/')) {
                         saveToDropbox(Number(selectedPlaylistId), dropboxFileName);
                     } else {
-                        showToast("ناوی فایل نادروستە. پێویستە بە / دەست پێبکات.", "error");
+                        showToast("ناوی فایل نادروستە یان لیستی دیارینەکراوە. پێویستە بە / دەست پێبکات.", "error");
                         shouldHideModal = false;
                     }
                 } else if (currentMode === 'fetchFromDropbox') {
                     const selectElement = document.getElementById('file-select-dropbox');
                     if (selectElement) {
                         const selectedFilePath = selectElement.value;
-                        loadFromDropbox(selectedFilePath);
+                        if (selectedFilePath) {
+                            downloadFromDropbox(selectedFilePath);
+                        } else {
+                            showToast("تکایە فایلێک هەڵبژێرە.", "error");
+                            shouldHideModal = false;
+                        }
                     }
                 } else if (currentMode === 'addPlaylist') { 
-                    const name = document.getElementById('playlist-name').value; 
-                    if (name) { playlists.push({ id: Date.now(), name: name, channels: [], dropboxPath: null }); saveAndRenderPlaylists(); } 
+                    const nameInput = document.getElementById('playlist-name');
+                    const name = nameInput ? nameInput.value.trim() : ''; 
+                    if (name) { 
+                        playlists.push({ id: Date.now(), name: name, channels: [], dropboxPath: null }); 
+                        saveAndRenderPlaylists(); 
+                    } else {
+                        showToast("ناوی لیستەکە بەتاڵە.", "error");
+                        shouldHideModal = false;
+                    }
                 } else if (currentMode === 'editPlaylist') { 
                     const playlist = playlists.find(p => p.id === currentEditingId); 
-                    const name = document.getElementById('playlist-name').value; 
-                    if (playlist && name) { playlist.name = name; saveAndRenderPlaylists(); } 
+                    const nameInput = document.getElementById('playlist-name');
+                    const name = nameInput ? nameInput.value.trim() : ''; 
+                    if (playlist && name) { 
+                        playlist.name = name; 
+                        // If changing name, update dropboxPath accordingly if it exists
+                        if (playlist.dropboxPath) {
+                           // Assuming we want to keep the same directory, just change the filename part
+                           const dir = playlist.dropboxPath.substring(0, playlist.dropboxPath.lastIndexOf('/') + 1);
+                           playlist.dropboxPath = `${dir}${name}.m3u`;
+                        }
+                        saveAndRenderPlaylists(); 
+                    } else {
+                        showToast("ناوی لیستەکە بەتاڵە.", "error");
+                        shouldHideModal = false;
+                    }
                 } else if (currentMode === 'addChannel' || currentMode === 'editChannel') { 
                     const playlist = playlists.find(p => p.id === currentPlaylistId); 
-                    const name = document.getElementById('channel-name').value; 
-                    const url = document.getElementById('channel-url').value; 
+                    const nameInput = document.getElementById('channel-name');
+                    const urlInput = document.getElementById('channel-url');
+                    const name = nameInput ? nameInput.value.trim() : ''; 
+                    const url = urlInput ? urlInput.value.trim() : ''; 
+                    
                     if (playlist && name && url) { 
-                        const channelData = { name, url, logo: document.getElementById('channel-logo').value, group: document.getElementById('channel-group').value }; 
+                        const channelData = { 
+                            name, 
+                            url, 
+                            logo: document.getElementById('channel-logo')?.value.trim() || '', 
+                            group: document.getElementById('channel-group')?.value.trim() || '' 
+                        }; 
+                        
+                        // Remember currently open groups to restore them after re-rendering
                         const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
+                        
                         if (currentMode === 'addChannel') { 
                             playlist.channels.push({ id: Date.now(), ...channelData }); 
-                        } else { 
+                        } else { // editChannel
                             const channel = playlist.channels.find(c => c.id === currentEditingId); 
                             if (channel) Object.assign(channel, channelData); 
                         } 
                         saveAndRenderChannels(openGroups); 
-                    } 
+                    } else {
+                        showToast("ناوی کەناڵ و URL پێویستن.", "error");
+                        shouldHideModal = false;
+                    }
                 } 
+                
                 if (shouldHideModal) {
                     hideModal();
                 }
@@ -677,63 +858,224 @@
 
             function saveAndRenderPlaylists() { savePlaylists(); renderPlaylists(DOMElements.playlistSearch.value); }
             function saveAndRenderChannels(openGroups = []) { savePlaylists(); renderChannels(currentPlaylistId, DOMElements.channelSearch.value, openGroups); }
-            function hideModal() { DOMElements.modalBackdrop.classList.add('hidden'); }
-            function showModal(mode, id = null) { currentMode = mode; currentEditingId = id; DOMElements.modalBackdrop.classList.remove('hidden'); DOMElements.modalConfirmBtn.textContent = "پشتڕاستکردنەوە"; let formHtml = ''; if (mode === 'addPlaylist' || mode === 'editPlaylist') { const playlist = mode === 'editPlaylist' ? playlists.find(p => p.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addPlaylist' ? 'دروستکردنی لیستی نوێ' : 'دەستکاری ناوی لیست'; formHtml = `<div class="form-group"><label for="playlist-name">ناوی لیست</label><input type="text" id="playlist-name" value="${playlist ? playlist.name : ''}" placeholder="بۆ نموونە: کەناڵە کوردییەکان"></div>`; } else if (mode === 'addChannel' || mode === 'editChannel') { const playlist = playlists.find(p => p.id === currentPlaylistId); const channel = mode === 'editChannel' ? playlist.channels.find(c => c.id === id) : null; DOMElements.modalTitle.textContent = mode === 'addChannel' ? 'زیادکردنی کەناڵی نوێ' : 'دەستکاری کەناڵ'; formHtml = `<div class="form-group"><label for="channel-name">ناوی کەناڵ</label><input type="text" id="channel-name" value="${channel ? channel.name : ''}" placeholder="بۆ نموونە: NRT HD"></div> <div class="form-group"><label for="channel-url">لینکی کەناڵ (URL)</label><input type="text" id="channel-url" value="${channel ? channel.url : ''}" placeholder="http://.../live.m3u8"></div> <div class="form-group"><label for="channel-logo">لینکی لۆگۆ</label><input type="text" id="channel-logo" value="${channel ? channel.logo : ''}" placeholder="http://.../logo.png"></div> <div class="form-group"><label for="channel-group">ناوی گرووپ</label><input type="text" id="channel-group" value="${channel ? channel.group : ''}" placeholder="بۆ نموونە: هەواڵ"></div>`; } DOMElements.modalContent.innerHTML = formHtml; const input = DOMElements.modalContent.querySelector('input'); if (input) setTimeout(() => input.focus(), 100); }
-            function showConfirmModal(message, callback) { DOMElements.confirmModalMessage.textContent = message; confirmCallback = callback; DOMElements.confirmModalBackdrop.classList.remove('hidden'); }
-            function hideConfirmModal() { DOMElements.confirmModalBackdrop.classList.add('hidden'); confirmCallback = null; }
-            function showScreen(screen) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); screen.classList.add('active'); }
+            
+            function hideModal() { 
+                DOMElements.modalBackdrop.classList.add('hidden'); 
+                currentMode = ''; 
+                currentEditingId = null;
+            }
+            
+            function showModal(mode, id = null) { 
+                currentMode = mode; 
+                currentEditingId = id; 
+                DOMElements.modalBackdrop.classList.remove('hidden'); 
+                DOMElements.modalConfirmBtn.textContent = "پشتڕاستکردنەوە"; 
+                DOMElements.modalConfirmBtn.disabled = false; // Enable by default
+                let formHtml = ''; 
+
+                if (mode === 'addPlaylist' || mode === 'editPlaylist') { 
+                    const playlist = mode === 'editPlaylist' ? playlists.find(p => p.id === id) : null; 
+                    DOMElements.modalTitle.textContent = mode === 'addPlaylist' ? 'دروستکردنی لیستی نوێ' : 'دەستکاری ناوی لیست'; 
+                    formHtml = `
+                        <div class="form-group">
+                            <label for="playlist-name">ناوی لیست:</label>
+                            <input type="text" id="playlist-name" value="${playlist ? playlist.name : ''}" placeholder="بۆ نموونە: کەناڵە کوردییەکان">
+                        </div>
+                        ${mode === 'editPlaylist' ? `
+                            <div class="form-group">
+                                <label for="dropbox-filename">ڕێگای درۆپبۆکس (Path):</label>
+                                <input type="text" id="dropbox-filename" value="${playlist && playlist.dropboxPath ? playlist.dropboxPath : ''}" placeholder="/M3U/MyList.m3u">
+                                <p style="font-size: 0.75rem; opacity: 0.7;">ئەم ڕێگایە بۆ پاشەکەوتکردن یان هێنان لە درۆپبۆکس بەکاردێت. ئەگەر бошنەکرا، دەستکاری مەکە.</p>
+                            </div>
+                        ` : ''}
+                    `; 
+                } else if (mode === 'addChannel' || mode === 'editChannel') { 
+                    const playlist = playlists.find(p => p.id === currentPlaylistId); 
+                    const channel = mode === 'editChannel' ? playlist.channels.find(c => c.id === id) : null; 
+                    DOMElements.modalTitle.textContent = mode === 'addChannel' ? 'زیادکردنی کەناڵی نوێ' : 'دەستکاری کەناڵ'; 
+                    formHtml = `
+                        <div class="form-group">
+                            <label for="channel-name">ناوی کەناڵ:</label>
+                            <input type="text" id="channel-name" value="${channel ? channel.name : ''}" placeholder="بۆ نموونە: NRT HD">
+                        </div> 
+                        <div class="form-group">
+                            <label for="channel-url">لینکی کەناڵ (URL):</label>
+                            <input type="text" id="channel-url" value="${channel ? channel.url : ''}" placeholder="http://.../live.m3u8">
+                        </div> 
+                        <div class="form-group">
+                            <label for="channel-logo">لینکی لۆگۆ (اختیاری):</label>
+                            <input type="text" id="channel-logo" value="${channel ? channel.logo : ''}" placeholder="http://.../logo.png">
+                        </div> 
+                        <div class="form-group">
+                            <label for="channel-group">ناوی گرووپ (اختیاری):</label>
+                            <input type="text" id="channel-group" value="${channel ? channel.group : ''}" placeholder="بۆ نموونە: هەواڵ">
+                        </div>
+                    `; 
+                } else if (mode === 'saveToDropbox') {
+                     const playlist = playlists.find(p => p.id === currentEditingId);
+                     DOMElements.modalTitle.textContent = "پاشەکەوتکردن لە درۆپبۆکس";
+                     if (!dropboxToken) {
+                         formHtml = '<p class="text-center" style="color: var(--warning-color);">پێویستە سەرەتا پەیوەست بە.</p>';
+                         DOMElements.modalConfirmBtn.disabled = true;
+                     } else if (!playlist) {
+                         formHtml = '<p class="text-center" style="color: var(--danger-color);">لیستەکە نەدۆزراوە.</p>';
+                         DOMElements.modalConfirmBtn.disabled = true;
+                     } else {
+                         formHtml = `
+                            <div class="form-group">
+                                <label for="file-select-dropbox">هەڵبژێرە بۆ پاشەکەوتکردن:</label>
+                                <select id="file-select-dropbox">
+                                    <option value="${playlist.dropboxPath || `/M3U/${playlist.name}.m3u`}" selected>${playlist.dropboxPath || `/M3U/${playlist.name}.m3u`}</option>
+                                </select>
+                                <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 10px;">ڕێگاکە دەستکاری بکە ئەگەر دەتەوێت لە جێگایەکی تر پاشەکەوت بکەیت. دەبێت بە '/' دەست پێبکات.</p>
+                            </div>
+                            <div class="form-group">
+                                <label for="dropbox-filename">ناوی فایل:</label>
+                                <input type="text" id="dropbox-filename" value="${playlist.dropboxPath || `/M3U/${playlist.name}.m3u`}" placeholder="/Path/To/YourList.m3u">
+                            </div>
+                         `;
+                     }
+                }
+                
+                DOMElements.modalContent.innerHTML = formHtml; 
+                
+                // Focus the first input element if it exists
+                const firstInput = DOMElements.modalContent.querySelector('input, select'); 
+                if (firstInput) setTimeout(() => firstInput.focus(), 100); 
+            }
+            
+            function showConfirmModal(message, callback) { 
+                DOMElements.confirmModalMessage.textContent = message; 
+                confirmCallback = callback; 
+                DOMElements.confirmModalBackdrop.classList.remove('hidden'); 
+            }
+            
+            function hideConfirmModal() { 
+                DOMElements.confirmModalBackdrop.classList.add('hidden'); 
+                confirmCallback = null; 
+            }
+            
+            function showScreen(screen) { 
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); 
+                screen.classList.add('active'); 
+            }
             
             function renderChannels(playlistId, filter = '', openGroups = []) { 
                 currentPlaylistId = playlistId; 
                 const playlist = playlists.find(p => p.id === playlistId); 
-                if (!playlist) { showScreen(DOMElements.homeScreen); return; } 
+                if (!playlist) { 
+                    showScreen(DOMElements.homeScreen); 
+                    return; 
+                } 
                 DOMElements.playlistTitleHeader.textContent = playlist.name; 
                 const container = DOMElements.channelListContainer; 
                 container.innerHTML = ''; 
                 const fragment = document.createDocumentFragment(); 
                 const channelsToDisplay = playlist.channels.filter(c => c.name.toLowerCase().includes(filter.toLowerCase())); 
+                
                 const groups = {}; 
-                channelsToDisplay.forEach(channel => { const groupTitle = channel.group || 'کەناڵە گشتییەکان'; if (!groups[groupTitle]) { groups[groupTitle] = []; } groups[groupTitle].push(channel); }); 
-                if (Object.keys(groups).length === 0 && filter) { container.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ کەناڵێک نەدۆزرایەوە.</p>`; return; } 
+                channelsToDisplay.forEach(channel => { 
+                    const groupTitle = channel.group || 'کەناڵە گشتییەکان'; 
+                    if (!groups[groupTitle]) { 
+                        groups[groupTitle] = []; 
+                    } 
+                    groups[groupTitle].push(channel); 
+                }); 
+                
+                if (Object.keys(groups).length === 0 && filter) { 
+                    container.innerHTML = `<p style="text-align: center; padding: 2rem 0; opacity: 0.7;">هیچ کەناڵێک نەدۆزرایەوە.</p>`; 
+                    return; 
+                } 
+                
+                // Sort groups alphabetically, then render
                 Object.keys(groups).sort().forEach((groupTitle) => { 
                     const details = document.createElement('details'); 
                     if (openGroups.includes(groupTitle)) {
                         details.open = true;
                     }
                     details.className = 'channel-group'; 
-                    const summary = document.createElement('summary'); 
-                    summary.innerHTML = `<span class="group-title-text">${groupTitle} (${groups[groupTitle].length})</span><button class="group-delete-btn" data-group-title="${groupTitle}" title="سڕینەوەی گرووپ"><i class="fas fa-trash"></i></button>`; 
+                    details.innerHTML = `
+                        <summary>
+                            <span class="group-title-text">${groupTitle} (${groups[groupTitle].length})</span>
+                            <button class="group-delete-btn" data-group-title="${groupTitle}" title="سڕینەوەی گرووپ"><i class="fas fa-trash"></i></button>
+                        </summary>
+                    `;
+                    
                     const ul = document.createElement('ul'); 
                     ul.className = 'item-list'; 
-                    groups[groupTitle].forEach((channel) => { 
+                    
+                    // Sort channels within the group alphabetically by name
+                    groups[groupTitle].sort((a, b) => a.name.localeCompare(b.name)).forEach((channel) => { 
                         const li = document.createElement('li'); 
                         li.className = 'item-card'; 
                         li.dataset.channelId = channel.id; 
-                        li.innerHTML = `<div class="item-info" data-action="open-info"><img src="${channel.logo || ''}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2VjZjBmMSI+PHBhdGggZD0iTTIxIDNIM2MtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmg1djJoOHYtMmE1YzEuMSAwIDEuOTktLjkgMS45OS0yTDIzIDVjMC0xLjE C45LTItMi0yem0wIDE0SDNWNWgxOHYxMnoiLz48L3N2Zz4=';"><div><h3>${channel.name}</h3></div></div><div class="item-actions"><button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button><button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button><button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button></div>`; 
+                        // Basic image fallback for logo
+                        const logoFallback = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzNkNGY1YyI+PHBhdGggZD0iTTIxIDNIM2MtMS4xIDAtMiAuOS0yIDJ2MTJjMCAxLjEuOSAyIDIgMmg1djJoOHYtMmE1YzEuMSAwIDEuOTktLjkgMS45OS0yTDIzIDVjMC0xLjEuNDktMi0yLTJ6bTAgMTRIM3YtMTJoMTR6Ii8+PC9zdmc+';
+                        li.innerHTML = `
+                            <div class="item-info" data-action="open-info">
+                                <img src="${channel.logo || logoFallback}" alt="Logo" class="channel-logo" onerror="this.onerror=null; this.src='${logoFallback}';">
+                                <div><h3>${channel.name}</h3></div>
+                            </div>
+                            <div class="item-actions">
+                                <button class="play-btn" title="کارپێکردن"><i class="fas fa-play"></i></button>
+                                <button class="edit-btn" title="دەستکاری"><i class="fas fa-edit"></i></button>
+                                <button class="delete-btn" title="سڕینەوە"><i class="fas fa-trash"></i></button>
+                            </div>
+                        `; 
                         ul.appendChild(li); 
                     }); 
-                    details.appendChild(summary); 
                     details.appendChild(ul); 
                     fragment.appendChild(details); 
                 }); 
                 container.appendChild(fragment); 
             }
             
-            function initTransferScreen() { populateTransferDropdowns(); DOMElements.transferListLeft.innerHTML = ''; DOMElements.transferListRight.innerHTML = ''; DOMElements.transferSearchLeft.value = ''; DOMElements.transferSearchRight.value = ''; DOMElements.selectAllLeft.checked = false; DOMElements.selectAllRight.checked = false; showScreen(DOMElements.transferScreen); }
-            function populateTransferDropdowns() { const selects = [DOMElements.transferSelectLeft, DOMElements.transferSelectRight]; selects.forEach(select => { const currentValue = select.value; select.innerHTML = '<option value="">هەڵبژێرە...</option>'; playlists.forEach(p => { const option = document.createElement('option'); option.value = p.id; option.textContent = p.name; select.appendChild(option); }); select.value = currentValue; }); }
+            function initTransferScreen() { 
+                populateTransferDropdowns(); 
+                DOMElements.transferListLeft.innerHTML = ''; 
+                DOMElements.transferListRight.innerHTML = ''; 
+                DOMElements.transferSearchLeft.value = ''; 
+                DOMElements.transferSearchRight.value = ''; 
+                DOMElements.selectAllLeft.checked = false; 
+                DOMElements.selectAllRight.checked = false; 
+                showScreen(DOMElements.transferScreen); 
+            }
+            
+            function populateTransferDropdowns() { 
+                const selects = [DOMElements.transferSelectLeft, DOMElements.transferSelectRight]; 
+                selects.forEach(select => { 
+                    const currentValue = select.value; 
+                    select.innerHTML = '<option value="">هەڵبژێرە...</option>'; 
+                    playlists.forEach(p => { 
+                        const option = document.createElement('option'); 
+                        option.value = p.id; 
+                        option.textContent = p.name; 
+                        select.appendChild(option); 
+                    }); 
+                    select.value = currentValue; // Restore previous selection if any
+                }); 
+            }
             
             function renderTransferList(playlistId, listElement, searchFilter = '') {
                 listElement.innerHTML = '';
                 if (!playlistId) return;
                 const playlist = playlists.find(p => p.id === Number(playlistId));
                 if (!playlist) return;
+                
                 const fragment = document.createDocumentFragment();
-                const channelsToDisplay = playlist.channels.filter(c => c.name.toLowerCase().includes(searchFilter.toLowerCase()));
+                // Filter channels by search term and sort alphabetically
+                const channelsToDisplay = playlist.channels
+                    .filter(c => c.name.toLowerCase().includes(searchFilter.toLowerCase()))
+                    .sort((a, b) => a.name.localeCompare(b.name));
+                    
                 channelsToDisplay.forEach(channel => {
                     const li = document.createElement('li');
                     li.className = 'transfer-channel-item';
                     li.dataset.channelId = channel.id;
-                    li.innerHTML = `<input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}"><label for="transfer-ch-${channel.id}">${channel.name}</label>`;
+                    li.innerHTML = `
+                        <input type="checkbox" id="transfer-ch-${channel.id}" data-channel-id="${channel.id}">
+                        <label for="transfer-ch-${channel.id}">${channel.name}</label>
+                    `;
                     fragment.appendChild(li);
                 });
                 listElement.appendChild(fragment);
@@ -772,27 +1114,33 @@
                 const channelsToTransfer = fromPlaylist.channels.filter(ch => channelIdsToTransfer.includes(ch.id));
 
                 channelsToTransfer.forEach(sourceChannel => {
+                    // Check if a channel with the same name or URL already exists in the target playlist
                     const existingChannelIndex = toPlaylist.channels.findIndex(destChannel => 
                         destChannel.name.toLowerCase() === sourceChannel.name.toLowerCase() || destChannel.url === sourceChannel.url
                     );
 
                     if (existingChannelIndex !== -1) {
+                        // Update existing channel if found
                         const existingChannel = toPlaylist.channels[existingChannelIndex];
-                        toPlaylist.channels[existingChannelIndex] = { ...sourceChannel, id: existingChannel.id };
+                        toPlaylist.channels[existingChannelIndex] = { ...sourceChannel, id: existingChannel.id }; // Keep existing ID
                     } else {
-                        toPlaylist.channels.push({ ...sourceChannel, id: Date.now() + Math.random() });
+                        // Add new channel, generate a new ID
+                        toPlaylist.channels.push({ ...sourceChannel, id: Date.now() + Math.random() }); 
                     }
                     transferredCount++;
                 });
 
+                // Remove transferred channels from the source playlist
                 fromPlaylist.channels = fromPlaylist.channels.filter(ch => !channelIdsToTransfer.includes(ch.id));
                 
                 savePlaylists();
                 showToast(`${transferredCount} کەناڵ بە سەرکەوتوویی گواسترایەوە.`, 'success');
 
+                // Re-render both lists to reflect changes
                 renderTransferList(DOMElements.transferSelectLeft.value, DOMElements.transferListLeft, DOMElements.transferSearchLeft.value);
                 renderTransferList(DOMElements.transferSelectRight.value, DOMElements.transferListRight, DOMElements.transferSearchRight.value);
                 
+                // Uncheck select all boxes
                 DOMElements.selectAllLeft.checked = false;
                 DOMElements.selectAllRight.checked = false;
             }
@@ -839,154 +1187,431 @@
                 checkerResultsBody: document.getElementById('checker-results-body'),
             };
 
+            // Default settings for categorization and grouping
             const defaultSettings = {
-                categories: { 'Kurdish TV': ['kurd', 'kurdsat', 'kurdistan', 'korek', 'nrt', 'rudaw', 'waar', 'vin', 'k24', 'کورد', 'kurdmax', 'net tv', 'ava tv'], 'Sports': ['sport', 'sports', 'ورزش', 'رياضة', 'alkass', 'ssc', 'bein', 'arena', 'dazn', 'espn', 'sky sport', 'ad sport', 'dubai sport', 'football', 'soccer', 'basketball', 'f1', 'laliga', 'serie a', 'bundesliga', 'premier league', 'champions league', 'كورة', 'الدوري'], 'News': ['news', 'اخبار', 'خبر', 'cnn', 'bbc', 'al jazeera', 'al arabiya', 'sky news', 'france 24', 'euronews'], 'Kids': ['kids', 'اطفال', 'کودک', 'cartoon', 'baby', 'anime', 'mbc3', 'disney', 'nickelodeon', 'cn', 'cartoon network', 'spacetoon'], 'Documentary': ['documentary', 'وثائقي', 'discovery', 'national geographic', 'nat geo', 'history', 'animal planet'], 'Cooking food': ['cook', 'food', 'طعام', 'طبخ', 'fatafeat', '24kitchen'], 'Quran': ['quran', 'قرآن', 'makkah', 'madinah', 'sunnah', 'islam', 'iqraa'] },
-                checkOrder: ['Kurdish TV', 'Sports', 'News', 'Kids', 'Documentary', 'Quran', 'Cooking food'],
-                defaultGroup: 'Kurdish TV'
+                categories: { 
+                    'Kurdish TV': ['kurd', 'kurdsat', 'kurdistan', 'korek', 'nrt', 'rudaw', 'waar', 'vin', 'k24', 'کورد', 'kurdmax', 'net tv', 'ava tv'], 
+                    'Sports': ['sport', 'sports', 'ورزش', 'رياضة', 'alkass', 'ssc', 'bein', 'arena', 'dazn', 'espn', 'sky sport', 'ad sport', 'dubai sport', 'football', 'soccer', 'basketball', 'f1', 'laliga', 'serie a', 'bundesliga', 'premier league', 'champions league', 'کورة', 'الدوري'], 
+                    'News': ['news', 'اخبار', 'خبر', 'cnn', 'bbc', 'al jazeera', 'al arabiya', 'sky news', 'france 24', 'euronews'], 
+                    'Kids': ['kids', 'اطفال', 'کودک', 'cartoon', 'baby', 'anime', 'mbc3', 'disney', 'nickelodeon', 'cn', 'cartoon network', 'spacetoon'], 
+                    'Documentary': ['documentary', 'وثائقي', 'discovery', 'national geographic', 'nat geo', 'history', 'animal planet'], 
+                    'Cooking food': ['cook', 'food', 'طعام', 'طبخ', 'fatafeat', '24kitchen'], 
+                    'Quran': ['quran', 'قرآن', 'makkah', 'madinah', 'sunnah', 'islam', 'iqraa'] 
+                },
+                checkOrder: ['Kurdish TV', 'Sports', 'News', 'Kids', 'Documentary', 'Quran', 'Cooking food'], // Order for checking keywords
+                defaultGroup: 'Kurdish TV' // Group for channels that don't match any keywords
             };
 
-            let appSettings = {}; let processedData = {}; let checkerChannels = []; let isChecking = false;
-            let currentCheckingPlaylistId = null;
+            let appSettings = {}; // Stores user's settings for the pro tool
+            let processedData = {}; // Stores the output data from the pro tool
+            let checkerChannels = []; // Stores channels currently being checked
+            let isChecking = false; // Flag to track if checker is running
+            let currentCheckingPlaylistId = null; // ID of the playlist being checked
 
-            function proToolLoadSettings() { const savedSettings = localStorage.getItem('m3uProSettings'); appSettings = savedSettings ? JSON.parse(savedSettings) : JSON.parse(JSON.stringify(defaultSettings)); proToolRenderSettingsUI(); }
-            function proToolSaveSettings() { appSettings.defaultGroup = proToolElements.defaultGroupSelect.value; localStorage.setItem('m3uProSettings', JSON.stringify(appSettings)); showToast('ڕێکخستنەکان پاشەکەوت کران!', 'success'); }
-            function proToolResetSettings() { if (confirm('ئایا دڵنیایت دەتەوێت هەموو ڕێکخستنەکان بگەڕێنیتەوە دۆخی سەرەتا؟')) { localStorage.removeItem('m3uProSettings'); proToolLoadSettings(); showToast('ڕێکخستنەکان گەڕێنرانەوە دۆخی سەرەتا.', 'success'); } }
+            // Load settings from localStorage or use defaults
+            function proToolLoadSettings() { 
+                const savedSettings = localStorage.getItem('m3uProSettings'); 
+                appSettings = savedSettings ? JSON.parse(savedSettings) : JSON.parse(JSON.stringify(defaultSettings)); 
+                proToolRenderSettingsUI(); 
+            }
+            
+            // Save settings to localStorage
+            function proToolSaveSettings() { 
+                appSettings.defaultGroup = proToolElements.defaultGroupSelect.value; // Update default group
+                localStorage.setItem('m3uProSettings', JSON.stringify(appSettings)); 
+                showToast('ڕێکخستنەکان پاشەکەوت کران!', 'success'); 
+            }
+            
+            // Reset settings to defaults
+            function proToolResetSettings() { 
+                if (confirm('ئایا دڵنیایت دەتەوێت هەموو ڕێکخستنەکان بگەڕێنیتەوە دۆخی سەرەتا؟')) { 
+                    localStorage.removeItem('m3uProSettings'); 
+                    proToolLoadSettings(); 
+                    showToast('ڕێکخستنەکان گەڕێنرانەوە دۆخی سەرەتا.', 'success'); 
+                } 
+            }
+            
+            // Render the settings UI for groups and keywords
             function proToolRenderSettingsUI() {
-                proToolElements.settingsContainer.innerHTML = ''; proToolElements.defaultGroupSelect.innerHTML = '';
-                const allGroups = Object.keys(appSettings.categories);
-                allGroups.forEach(groupName => {
-                    const groupItem = document.createElement('div'); groupItem.className = 'group-item'; const keywords = appSettings.categories[groupName] || [];
-                    groupItem.innerHTML = `<div class="group-header"><span class="group-title">${groupName}</span><button class="clear-btn delete-group" data-group="${groupName}">×</button></div><div class="keywords-container">${keywords.map(kw => `<span class="keyword-tag">${kw}<span class="delete-keyword" data-group="${groupName}" data-keyword="${kw}">×</span></span>`).join('')}</div><div class="add-keyword-form"><input type="text" class="new-keyword-input" placeholder="کلیلەوشەی نوێ"><button class="file-upload-label add-keyword-btn" data-group="${groupName}">+</button></div>`;
+                proToolElements.settingsContainer.innerHTML = ''; // Clear existing settings
+                proToolElements.defaultGroupSelect.innerHTML = ''; // Clear existing options for default group
+                
+                // Render each category group
+                Object.keys(appSettings.categories).forEach(groupName => {
+                    const groupItem = document.createElement('div'); 
+                    groupItem.className = 'group-item'; 
+                    const keywords = appSettings.categories[groupName] || [];
+                    
+                    groupItem.innerHTML = `
+                        <div class="group-header">
+                            <span class="group-title">${groupName}</span>
+                            <button class="clear-btn delete-group" data-group="${groupName}" title="سڕینەوەی گرووپ">×</button>
+                        </div>
+                        <div class="keywords-container">
+                            ${keywords.map(kw => `<span class="keyword-tag">${kw}<span class="delete-keyword" data-group="${groupName}" data-keyword="${kw}">×</span></span>`).join('')}
+                        </div>
+                        <div class="add-keyword-form">
+                            <input type="text" class="new-keyword-input" placeholder="کلیلەوشەی نوێ">
+                            <button class="file-upload-label add-keyword-btn" data-group="${groupName}">+</button>
+                        </div>
+                    `;
                     proToolElements.settingsContainer.appendChild(groupItem);
-                    const option = document.createElement('option'); option.value = groupName; option.textContent = groupName; proToolElements.defaultGroupSelect.appendChild(option);
+                    
+                    // Add group to the default group select dropdown
+                    const option = document.createElement('option'); 
+                    option.value = groupName; 
+                    option.textContent = groupName; 
+                    proToolElements.defaultGroupSelect.appendChild(option);
                 });
+                
+                // Set the currently selected default group
                 proToolElements.defaultGroupSelect.value = appSettings.defaultGroup;
             }
+            
+            // Setup file input listeners for file selection and clearing
             function proToolSetupFileInput(input, span, clearBtn) {
                 input.addEventListener('change', () => { 
                     if (input.files.length > 0) { 
                         span.textContent = input.files[0].name; 
                         clearBtn.style.display = 'inline-block';
-                        proToolElements.checkerPlaylistSelect.value = '';
-                        if(input.id === 'fileInputChecker') proToolElements.startCheckerBtn.disabled = false;
+                        // If checker file is selected, clear playlist dropdown and enable button
+                        if(input.id === 'fileInputChecker') {
+                            proToolElements.checkerPlaylistSelect.value = ''; // Clear playlist selection
+                            proToolElements.startCheckerBtn.disabled = false;
+                        }
                     } 
                 });
                 clearBtn.addEventListener('click', () => { 
-                    input.value = ''; span.textContent = 'هیچ فایلێک هەڵنەبژێردراوە'; 
+                    input.value = ''; // Clear the file input
+                    span.textContent = 'هیچ فایلێک هەڵنەبژێردراوە'; 
                     clearBtn.style.display = 'none'; 
+                    // If checker file is cleared and no playlist selected, disable button
                     if(input.id === 'fileInputChecker' && proToolElements.checkerPlaylistSelect.value === '') { 
                         proToolElements.startCheckerBtn.disabled = true; 
-                        proToolResetCheckerUI();
+                        proToolResetCheckerUI(); // Reset checker UI if file is cleared
                     } 
                 });
             };
-            function proToolSetLoading(isLoading) { proToolElements.processButton.disabled = isLoading; proToolElements.loadingSpinner.style.display = isLoading ? 'block' : 'none'; proToolElements.processBtnText.textContent = isLoading ? '...چاوەڕوانبە' : '🚀 پرۆسێس و دابەشکردن'; }
-            function proToolProcessAndSplit(contents) {
-                processedData = {}; const combinedContent = contents.join('\n');
-                if (!combinedContent.includes('#EXTM3U')) { showToast('هیچ یەک لە فایلەکان ستاندارد نییە! دەبێت بە #EXTM3U دەست پێبکات.', 'error'); return; }
-                const allChannels = proToolParseM3uContent(combinedContent); const uniqueChannelsMap = new Map();
-                allChannels.forEach(channel => { const channelName = (channel.info.split(',').pop() || channel.name).trim().toLowerCase(); if (channelName && !uniqueChannelsMap.has(channelName)) { uniqueChannelsMap.set(channelName, channel); } });
-                const uniqueChannels = Array.from(uniqueChannelsMap.values());
-                let statusMsg = `پرۆسە تەواوبوو! ${uniqueChannels.length} کەناڵی بێ دووبارەبوونەوە دۆزرایەوە.`;
-                if (proToolElements.mergeOnlyCheckbox.checked) { proToolGenerateSingleMergedFile(uniqueChannels); showToast(statusMsg, 'success'); return; }
-                const groupedChannels = {};
-                Object.keys(appSettings.categories).forEach(group => groupedChannels[group] = []);
-                uniqueChannels.forEach(channel => {
-                    const channelInfoForSearch = (channel.info.split(',').pop() + ' ' + channel.info).toLowerCase(); let assignedGroup = null;
-                    for (const groupName of appSettings.checkOrder) { if (appSettings.categories[groupName] && appSettings.categories[groupName].some(keyword => channelInfoForSearch.includes(keyword.toLowerCase()))) { assignedGroup = groupName; break; } }
-                    groupedChannels[assignedGroup || appSettings.defaultGroup].push(channel);
-                });
-                proToolGenerateGroupedFiles(groupedChannels); showToast(statusMsg, 'success');
+            
+            // Show/hide loading spinner and change button text
+            function proToolSetLoading(isLoading) { 
+                proToolElements.processButton.disabled = isLoading; 
+                proToolElements.loadingSpinner.style.display = isLoading ? 'block' : 'none'; 
+                proToolElements.processBtnText.textContent = isLoading ? '...چاوەڕوانبە' : '🚀 پرۆسێس و دابەشکردن'; 
             }
-            function proToolGenerateSingleMergedFile(channels) { const prefix = proToolElements.filenamePrefix.value.trim(); processedData['Merged_List'] = { channels: channels, content: proToolGenerateM3uString(channels) }; proToolDisplayResults(processedData); proToolElements.downloadButton.style.display = 'none'; }
+            
+            // Process and split files based on settings
+            function proToolProcessAndSplit(contents) {
+                processedData = {}; // Clear previous results
+                const combinedContent = contents.join('\n'); // Combine content from multiple files
+                
+                if (!combinedContent.includes('#EXTM3U')) { 
+                    showToast('هیچ یەک لە فایلەکان ستاندارد نییە! دەبێت بە #EXTM3U دەست پێبکات.', 'error'); 
+                    return; 
+                }
+                
+                const allChannels = proToolParseM3uContent(combinedContent); // Parse all channels
+                
+                // Create a map to get unique channels based on name (case-insensitive)
+                const uniqueChannelsMap = new Map();
+                allChannels.forEach(channel => { 
+                    const channelName = (channel.info.split(',').pop() || channel.name).trim().toLowerCase(); 
+                    if (channelName && !uniqueChannelsMap.has(channelName)) { 
+                        uniqueChannelsMap.set(channelName, channel); 
+                    } 
+                });
+                const uniqueChannels = Array.from(uniqueChannelsMap.values());
+                
+                let statusMsg = `پرۆسە تەواوبوو! ${uniqueChannels.length} کەناڵی بێ دووبارەبوونەوە دۆزرایەوە.`;
+                
+                if (proToolElements.mergeOnlyCheckbox.checked) { // If only merging is selected
+                    proToolGenerateSingleMergedFile(uniqueChannels); 
+                    showToast(statusMsg, 'success'); 
+                    return; 
+                }
+                
+                // Group channels based on keywords and settings
+                const groupedChannels = {};
+                // Initialize groups based on settings
+                Object.keys(appSettings.categories).forEach(group => groupedChannels[group] = []);
+                
+                uniqueChannels.forEach(channel => {
+                    // Combine channel info and name for keyword matching
+                    const channelInfoForSearch = (channel.info + ' ' + channel.name).toLowerCase(); 
+                    let assignedGroup = null;
+                    
+                    // Check keywords in the order defined in appSettings.checkOrder
+                    for (const groupName of appSettings.checkOrder) { 
+                        if (appSettings.categories[groupName] && appSettings.categories[groupName].some(keyword => channelInfoForSearch.includes(keyword.toLowerCase()))) { 
+                            assignedGroup = groupName; 
+                            break; 
+                        } 
+                    }
+                    
+                    // Assign to the default group if no keywords matched
+                    groupedChannels[assignedGroup || appSettings.defaultGroup].push(channel); 
+                });
+                
+                proToolGenerateGroupedFiles(groupedChannels); // Generate individual M3U files for each group
+                showToast(statusMsg, 'success'); 
+            }
+            
+            // Generate a single merged M3U file
+            function proToolGenerateSingleMergedFile(channels) { 
+                const prefix = proToolElements.filenamePrefix.value.trim(); 
+                processedData['Merged_List'] = { channels: channels, content: proToolGenerateM3uString(channels) }; 
+                proToolDisplayResults(processedData); 
+                proToolElements.downloadButton.style.display = 'none'; // Hide zip download if only one file
+            }
+            
+            // Generate M3U files for each group and package them in a zip
             function proToolGenerateGroupedFiles(groupedChannels) {
-                const prefix = proToolElements.filenamePrefix.value.trim(); const zip = new JSZip();
+                const prefix = proToolElements.filenamePrefix.value.trim(); 
+                const zip = new JSZip(); // Initialize JSZip for creating zip archives
+                
                 Object.keys(groupedChannels).forEach(groupName => {
                     const channelsInGroup = groupedChannels[groupName];
                     if (channelsInGroup && channelsInGroup.length > 0) {
                         let m3uContent = '#EXTM3U\n';
                         channelsInGroup.forEach(channel => {
+                            // Re-apply group-title attribute, ensuring it's correctly formatted
                             const infoLine = channel.info || `#EXTINF:-1 tvg-logo="${channel.logo || ''}" group-title="${groupName}",${channel.name}`;
-                            const lastCommaIndex = infoLine.lastIndexOf(','); let newInfoLine;
-                            if (lastCommaIndex !== -1) { let attributesPart = infoLine.substring(0, lastCommaIndex); const channelNamePart = infoLine.substring(lastCommaIndex + 1); attributesPart = attributesPart.replace(/group-title=".*?"/g, '').trim().replace(/\s\s+/g, ' '); newInfoLine = `${attributesPart} group-title="${groupName}",${channelNamePart}`; } else { newInfoLine = `${infoLine} group-title="${groupName}"`; }
+                            const lastCommaIndex = infoLine.lastIndexOf(','); 
+                            let newInfoLine;
+                            if (lastCommaIndex !== -1) { 
+                                // Extract attributes part and channel name part
+                                let attributesPart = infoLine.substring(0, lastCommaIndex); 
+                                // Remove existing group-title if any to avoid duplicates
+                                attributesPart = attributesPart.replace(/group-title=".*?"/g, '').trim(); 
+                                // Ensure multiple spaces are reduced to single spaces
+                                attributesPart = attributesPart.replace(/\s\s+/g, ' '); 
+                                // Reconstruct the info line with the correct group-title
+                                newInfoLine = `${attributesPart} group-title="${groupName}",${infoLine.substring(lastCommaIndex + 1)}`; 
+                            } else { 
+                                // If no comma found (unlikely for #EXTINF), just append group-title
+                                newInfoLine = `${infoLine} group-title="${groupName}"`; 
+                            }
                             m3uContent += `${newInfoLine}\n${channel.url}\n`;
                         });
-                        const filename = `${prefix}${groupName}.m3u`;
-                        zip.file(filename, m3uContent);
-                        processedData[groupName] = { channels: channelsInGroup, content: m3uContent };
+                        
+                        const filename = `${prefix}${groupName}.m3u`; // Create filename with prefix
+                        zip.file(filename, m3uContent); // Add file to zip
+                        processedData[groupName] = { channels: channelsInGroup, content: m3uContent }; // Store data for display
                     }
                 });
+                
+                // If any files were generated, create a zip download link
                 if (Object.keys(processedData).length > 0) {
-                    zip.generateAsync({ type: "blob" }).then(content => { const url = URL.createObjectURL(content); proToolElements.downloadButton.href = url; proToolElements.downloadButton.setAttribute('download', `${prefix}M3U_Playlists.zip`); proToolElements.downloadButton.style.display = 'block'; });
+                    zip.generateAsync({ type: "blob" }).then(content => { 
+                        const url = URL.createObjectURL(content); 
+                        proToolElements.downloadButton.href = url; 
+                        proToolElements.downloadButton.setAttribute('download', `${prefix}M3U_Playlists.zip`); 
+                        proToolElements.downloadButton.style.display = 'block'; 
+                    });
                 }
-                proToolDisplayResults(processedData);
+                proToolDisplayResults(processedData); // Display individual results
             }
+            
+            // Display the processed results (individual M3U files)
             function proToolDisplayResults(data) {
-                proToolElements.resultListDiv.innerHTML = ''; const prefix = proToolElements.filenamePrefix.value.trim();
+                proToolElements.resultListDiv.innerHTML = ''; // Clear previous results
+                const prefix = proToolElements.filenamePrefix.value.trim(); 
+                
                 Object.keys(data).forEach(groupName => {
-                    const groupData = data[groupName]; const count = groupData.channels.length;
+                    const groupData = data[groupName]; 
+                    const count = groupData.channels.length;
+                    
                     if (count > 0) {
-                        const blob = new Blob([groupData.content], { type: 'application/vnd.apple.mpegurl' }); const url = URL.createObjectURL(blob); const filename = `${prefix}${groupName}.m3u`;
-                        const resultItem = document.createElement('div'); resultItem.className = 'result-item';
+                        // Create a Blob and URL for downloading the individual M3U file
+                        const blob = new Blob([groupData.content], { type: 'application/vnd.apple.mpegurl' }); 
+                        const url = URL.createObjectURL(blob); 
+                        const filename = `${prefix}${groupName}.m3u`;
+                        
+                        const resultItem = document.createElement('div'); 
+                        resultItem.className = 'result-item'; 
+                        
+                        // Show preview of the first 5 channels
                         let previewList = groupData.channels.slice(0, 5).map(ch => `<li>${ch.name || ch.info.split(',').pop()}</li>`).join('');
-                        resultItem.innerHTML = `<div class="result-header"><div class="result-info"><span>📁</span><span>${groupName} (${count} کەناڵ)</span></div><div class="result-actions"><a href="${url}" download="${filename}" class="download-single" title="داگرتنی ئەم گرووپە"><i class="fas fa-download"></i></a></div></div><div class="channel-preview"><ul class="channel-preview-list">${previewList}</ul></div>`;
+                        
+                        resultItem.innerHTML = `
+                            <div class="result-header">
+                                <div class="result-info">
+                                    <span>📁</span>
+                                    <span>${groupName} (${count} کەناڵ)</span>
+                                </div>
+                                <div class="result-actions">
+                                    <a href="${url}" download="${filename}" class="download-single" title="داگرتنی ئەم گرووپە"><i class="fas fa-download"></i></a>
+                                </div>
+                            </div>
+                            <div class="channel-preview">
+                                <ul class="channel-preview-list">${previewList}</ul>
+                            </div>
+                        `;
                         proToolElements.resultListDiv.appendChild(resultItem);
                     }
                 });
-                proToolElements.resultsDiv.style.display = 'block';
+                proToolElements.resultsDiv.style.display = 'block'; // Show the results section
             }
-            function proToolReadFileAsText(file) { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = event => resolve(event.target.result); reader.onerror = error => reject(error); reader.readAsText(file); }); }
-            function proToolParseM3uContent(content) { const lines = content.split('\n'); const channels = []; for (let i = 0; i < lines.length; i++) { const line = lines[i].trim(); if (line.startsWith('#EXTINF:')) { const url = lines[i + 1] ? lines[i + 1].trim() : ''; const name = (line.match(/,(.*)/) || [])[1]?.trim() || 'Unknown'; if (url && !url.startsWith('#')) { channels.push({ info: line, url: url, name: name }); i++; } } } return channels; }
-            function proToolGenerateM3uString(channels) { let content = '#EXTM3U\n'; channels.forEach(ch => { const infoLine = ch.info || `#EXTINF:-1 tvg-logo="${ch.logo || ''}" group-title="${ch.group || ''}",${ch.name}`; content += `${infoLine}\n${ch.url}\n`; }); return content; }
-            function proToolResetCheckerUI() { proToolElements.checkerProgressContainer.style.display = 'none'; proToolElements.checkerProgressBar.style.width = '0%'; proToolElements.checkerResultsBody.innerHTML = ''; proToolElements.checkerStats.innerHTML = ''; proToolElements.downloadCleanedBtn.style.display = 'none'; proToolElements.updateInternalPlaylistBtn.style.display = 'none'; currentCheckingPlaylistId = null;}
-            function proToolUpdateCheckerStats(stats) { proToolElements.checkerStats.innerHTML = `<div class="stat-card"><div class="value">${stats.total}</div><div class="label">کۆی گشتی</div></div><div class="stat-card"><div class="value" style="color:var(--success-color)">${stats.working}</div><div class="label">✅ کارا</div></div><div class="stat-card"><div class="value" style="color:var(--warning-color)">${stats.cors}</div><div class="label">⚠️ هەڵەی CORS</div></div><div class="stat-card"><div class="value" style="color:#8e44ad">${stats.timeout}</div><div class="label">⏱️ وەڵام نەبوو</div></div>`; }
+            
+            // Read a file as text using FileReader API
+            function proToolReadFileAsText(file) { 
+                return new Promise((resolve, reject) => { 
+                    const reader = new FileReader(); 
+                    reader.onload = event => resolve(event.target.result); 
+                    reader.onerror = error => reject(error); 
+                    reader.readAsText(file); 
+                }); 
+            }
+            
+            // Parse M3U content to extract channel information
+            function proToolParseM3uContent(content) { 
+                const lines = content.split('\n'); 
+                const channels = []; 
+                for (let i = 0; i < lines.length; i++) { 
+                    const line = lines[i].trim(); 
+                    if (line.startsWith('#EXTINF:')) { 
+                        const url = lines[i + 1] ? lines[i + 1].trim() : ''; // Get the next line as URL
+                        const name = (line.match(/,(.*)/) || [])[1]?.trim() || 'Unknown Channel'; // Extract channel name after comma
+                        
+                        // Ensure URL is valid and not a comment
+                        if (url && !url.startsWith('#') && (url.startsWith('http') || url.startsWith('rtmp') || url.startsWith('udp:') || url.startsWith('rtsp:'))) { 
+                            channels.push({ info: line, url: url, name: name }); // Store info, URL, and name
+                            i++; // Skip the next line (URL) as it's already processed
+                        } 
+                    } 
+                } 
+                return channels; 
+            }
+            
+            // Generate M3U string from an array of channel objects
+            function proToolGenerateM3uString(channels) { 
+                let content = '#EXTM3U\n'; 
+                channels.forEach(ch => { 
+                    // Use stored info or construct a basic #EXTINF line
+                    const infoLine = ch.info || `#EXTINF:-1 tvg-logo="${ch.logo || ''}" group-title="${ch.group || ''}",${ch.name}`; 
+                    content += `${infoLine}\n${ch.url}\n`; 
+                }); 
+                return content; 
+            }
+            
+            // Reset the checker tool UI elements
+            function proToolResetCheckerUI() {
+                proToolElements.checkerProgressContainer.style.display = 'none'; 
+                proToolElements.checkerProgressBar.style.width = '0%'; 
+                proToolElements.checkerResultsBody.innerHTML = ''; 
+                proToolElements.checkerStats.innerHTML = ''; 
+                proToolElements.downloadCleanedBtn.style.display = 'none'; 
+                proToolElements.updateInternalPlaylistBtn.style.display = 'none'; 
+                currentCheckingPlaylistId = null; // Reset the currently checked playlist ID
+            }
+            
+            // Update the stats display for the checker tool
+            function proToolUpdateCheckerStats(stats) {
+                proToolElements.checkerStats.innerHTML = `
+                    <div class="stat-card">
+                        <div class="value">${stats.total}</div>
+                        <div class="label">کۆی گشتی</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" style="color:var(--success-color)">${stats.working}</div>
+                        <div class="label">✅ کارا</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" style="color:var(--warning-color)">${stats.cors}</div>
+                        <div class="label">⚠️ هەڵەی CORS</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" style="color:#8e44ad">${stats.timeout}</div>
+                        <div class="label">⏱️ وەڵام نەبوو</div>
+                    </div>
+                `;
+            }
+            
+            // Add a row to the checker results table
             function proToolUpdateCheckerTableRow(index, channel) {
-                const row = document.createElement('tr'); const statusMap = { 'Working': { text: 'کارا', class: 'status-working' }, 'Failed': { text: 'کار ناکات', class: 'status-failed' }, 'CORS': { text: 'هەڵەی CORS', class: 'status-cors' }, 'Timeout': { text: 'وەڵام نەبوو', class: 'status-timeout' } };
-                const statusInfo = statusMap[channel.status] || { text: 'نەزانراو', class: '' };
+                const row = document.createElement('tr'); 
+                const statusMap = { 
+                    'Working': { text: 'کارا', class: 'status-working' }, 
+                    'Failed': { text: 'کار ناکات', class: 'status-failed' }, // Not used in current logic but kept for future
+                    'CORS': { text: 'هەڵەی CORS', class: 'status-cors' }, 
+                    'Timeout': { text: 'وەڵام نەبوو', class: 'status-timeout' } 
+                };
+                const statusInfo = statusMap[channel.status] || { text: 'نەزانراو', class: '' }; // Default status
                 row.innerHTML = `<td>${index}</td><td>${channel.name}</td><td class="status-cell"><span class="${statusInfo.class}">${statusInfo.text}</span></td>`;
-                proToolElements.checkerResultsBody.prepend(row);
+                proToolElements.checkerResultsBody.prepend(row); // Add to the top of the table
             }
+            
+            // Check a single URL for availability and CORS issues
             async function proToolCheckSingleUrl(url) {
-                const controller = new AbortController(); const timeoutId = setTimeout(() => controller.abort(), 5000);
-                try { await fetch(url, { signal: controller.signal, mode: 'no-cors' }); return { status: 'Working' }; } catch (error) { if (error.name === 'AbortError') { return { status: 'Timeout' }; } return { status: 'CORS' }; } finally { clearTimeout(timeoutId); }
+                const controller = new AbortController(); 
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout for each check
+                try { 
+                    // Use mode 'no-cors' to bypass CORS issues for the fetch itself, but we can still detect the status
+                    await fetch(url, { signal: controller.signal, mode: 'no-cors' }); 
+                    return { status: 'Working' }; // If fetch completes without abort, it's considered working
+                } catch (error) { 
+                    if (error.name === 'AbortError') { // If the error is due to timeout
+                        return { status: 'Timeout' }; 
+                    } 
+                    // Any other fetch error (like network, etc.) is treated as CORS or general failure
+                    return { status: 'CORS' }; 
+                } finally { 
+                    clearTimeout(timeoutId); // Clean up the timeout
+                }
             }
+            
+            // Check all channels in the provided list
             async function proToolCheckAllChannels(channels) {
                 let stats = { total: channels.length, working: 0, failed: 0, cors: 0, timeout: 0, checked: 0 }; 
-                let survivingChannels = [];
-                proToolUpdateCheckerStats(stats);
+                let survivingChannels = []; // Channels that are working or have CORS issues (can still be played)
+                proToolUpdateCheckerStats(stats); // Initialize stats display
+                
+                // Iterate through each channel
                 for (const channel of channels) {
-                    if (!isChecking) { proToolElements.checkerProgressText.textContent += ' (ڕاگیرا)'; break; }
+                    if (!isChecking) { // If checker is stopped
+                        proToolElements.checkerProgressText.textContent += ' (ڕاگیرا)'; 
+                        break; 
+                    }
                     stats.checked++;
                     proToolElements.checkerProgressText.textContent = `پشکنینی کەناڵی ${stats.checked} لە ${stats.total}...`;
-                    proToolElements.checkerProgressBar.style.width = `${(stats.checked / stats.total) * 100}%`;
-                    const result = await proToolCheckSingleUrl(channel.url);
-                    channel.status = result.status; 
-                    stats[result.status.toLowerCase()]++;
+                    proToolElements.checkerProgressBar.style.width = `${(stats.checked / stats.total) * 100}%`; // Update progress bar
+                    
+                    const result = await proToolCheckSingleUrl(channel.url); // Check the channel URL
+                    channel.status = result.status; // Assign the status to the channel object
+                    stats[result.status.toLowerCase()]++; // Increment the corresponding stat
+                    
+                    // Keep channels that are working or have CORS issues
                     if(result.status === 'Working' || result.status === 'CORS') {
                         survivingChannels.push(channel);
                     }
-                    proToolUpdateCheckerTableRow(stats.checked, channel); 
-                    proToolUpdateCheckerStats(stats);
+                    
+                    proToolUpdateCheckerTableRow(stats.checked, channel); // Update the table row
+                    proToolUpdateCheckerStats(stats); // Update the overall stats
                 }
                 
+                // Reset download and update buttons
                 proToolElements.downloadCleanedBtn.style.display = 'none';
                 proToolElements.updateInternalPlaylistBtn.style.display = 'none';
 
+                // If there are surviving channels, prepare the cleaned list
                 if(survivingChannels.length > 0){
                     const blob = new Blob([proToolGenerateM3uString(survivingChannels)], { type: 'application/vnd.apple.mpegurl' }); 
                     const url = URL.createObjectURL(blob); 
                     proToolElements.downloadCleanedBtn.href = url; 
                     proToolElements.downloadCleanedBtn.setAttribute('download', 'Cleaned_List.m3u'); 
-                    proToolElements.downloadCleanedBtn.style.display = 'block';
+                    proToolElements.downloadCleanedBtn.style.display = 'block'; // Show download button
 
+                    // Show update button if checking an internal playlist
                     if (currentCheckingPlaylistId) {
                         proToolElements.updateInternalPlaylistBtn.style.display = 'block';
                     }
                 }
             }
+            
+            // Populate the dropdown for selecting internal playlists for checking
             function populateCheckerDropdown() {
                 const select = proToolElements.checkerPlaylistSelect;
-                select.innerHTML = '<option value="">لیستێکی ناوخۆیی هەڵبژێرە...</option>';
+                select.innerHTML = '<option value="">لیستێکی ناوخۆیی هەڵبژێرە...</option>'; // Default option
                 playlists.forEach(p => {
                     const option = document.createElement('option');
                     option.value = p.id;
@@ -994,17 +1619,57 @@
                     select.appendChild(option);
                 });
             }
+            
+            // Initialize the Pro Tool functionality
             function initializeProTool() {
-                proToolLoadSettings();
-                proToolElements.tabLinks.forEach(tab => { tab.addEventListener('click', () => { proToolElements.tabLinks.forEach(link => link.classList.remove('active')); proToolElements.tabContents.forEach(content => content.classList.remove('active')); tab.classList.add('active'); document.getElementById(tab.dataset.tab).classList.add('active'); }); });
+                proToolLoadSettings(); // Load settings first
+                
+                // Tab switching logic
+                proToolElements.tabLinks.forEach(tab => { 
+                    tab.addEventListener('click', () => { 
+                        // Remove 'active' class from all tabs and contents
+                        proToolElements.tabLinks.forEach(link => link.classList.remove('active')); 
+                        proToolElements.tabContents.forEach(content => content.classList.remove('active')); 
+                        // Add 'active' class to the clicked tab and its corresponding content
+                        tab.classList.add('active'); 
+                        document.getElementById(tab.dataset.tab).classList.add('active'); 
+                    }); 
+                });
+                
+                // Setup file inputs for both file processing and checker
                 proToolSetupFileInput(proToolElements.fileInput1, proToolElements.fileName1, proToolElements.clearBtn1);
                 proToolSetupFileInput(proToolElements.fileInput2, proToolElements.fileName2, proToolElements.clearBtn2);
                 proToolSetupFileInput(proToolElements.fileInputChecker, proToolElements.fileNameChecker, proToolElements.clearBtnChecker);
-                proToolElements.processButton.addEventListener('click', async () => { if (proToolElements.fileInput1.files.length === 0 && proToolElements.fileInput2.files.length === 0) { showToast('تکایە لانیکەم یەک فایل هەڵبژێرە!', 'error'); return; } proToolSetLoading(true); const filesToProcess = []; if (proToolElements.fileInput1.files.length > 0) filesToProcess.push(proToolElements.fileInput1.files[0]); if (proToolElements.fileInput2.files.length > 0) filesToProcess.push(proToolElements.fileInput2.files[0]); try { const fileContents = await Promise.all(filesToProcess.map(proToolReadFileAsText)); proToolProcessAndSplit(fileContents); } catch (error) { showToast('هەڵەیەک لە خوێندنەوەی فایل(ەکان)دا ڕوویدا!', 'error'); console.error(error); } finally { proToolSetLoading(false); } });
                 
+                // Event listener for the process button (Merge & Split)
+                proToolElements.processButton.addEventListener('click', async () => { 
+                    // Check if at least one file is selected
+                    if (proToolElements.fileInput1.files.length === 0 && proToolElements.fileInput2.files.length === 0) { 
+                        showToast('تکایە لانیکەم یەک فایل هەڵبژێرە!', 'error'); return; 
+                    } 
+                    
+                    proToolSetLoading(true); // Show loading indicator
+                    const filesToProcess = [];
+                    if (proToolElements.fileInput1.files.length > 0) filesToProcess.push(proToolElements.fileInput1.files[0]);
+                    if (proToolElements.fileInput2.files.length > 0) filesToProcess.push(proToolElements.fileInput2.files[0]);
+                    
+                    try { 
+                        // Read contents of selected files concurrently
+                        const fileContents = await Promise.all(filesToProcess.map(proToolReadFileAsText)); 
+                        proToolProcessAndSplit(fileContents); // Process and split the combined content
+                    } catch (error) { 
+                        showToast('هەڵەیەک لە خوێندنەوەی فایل(ەکان)دا ڕوویدا!', 'error'); 
+                        console.error(error); 
+                    } finally { 
+                        proToolSetLoading(false); // Hide loading indicator
+                    } 
+                });
+                
+                // Event listener for checker playlist selection
                 proToolElements.checkerPlaylistSelect.addEventListener('change', (e) => {
-                    const hasSelection = e.target.value !== '';
-                    proToolElements.startCheckerBtn.disabled = !hasSelection;
+                    const hasSelection = e.target.value !== ''; // Check if a playlist is selected
+                    proToolElements.startCheckerBtn.disabled = !hasSelection; // Enable button only if a playlist is selected
+                    // If a playlist is selected, clear the file input for the checker
                     if(hasSelection) {
                         proToolElements.fileInputChecker.value = '';
                         proToolElements.fileNameChecker.textContent = 'هیچ فایلێک هەڵنەبژێردراوە';
@@ -1012,34 +1677,47 @@
                     }
                 });
 
+                // Event listener for the checker start/stop button
                 proToolElements.startCheckerBtn.addEventListener('click', async () => { 
-                    if(isChecking) { isChecking = false; proToolElements.startCheckerBtn.textContent = '🔬 دەستپێکردنی پشکنین'; proToolElements.startCheckerBtn.classList.remove('danger'); proToolElements.startCheckerBtn.classList.add('success'); proToolElements.startCheckerBtn.disabled = false; return; } 
+                    // If checker is already running, stop it
+                    if(isChecking) { 
+                        isChecking = false; 
+                        proToolElements.startCheckerBtn.textContent = '🔬 دەستپێکردنی پشکنین'; 
+                        proToolElements.startCheckerBtn.classList.remove('danger'); 
+                        proToolElements.startCheckerBtn.classList.add('success'); 
+                        proToolElements.startCheckerBtn.disabled = false; 
+                        return; 
+                    } 
                     
                     const selectedPlaylistId = proToolElements.checkerPlaylistSelect.value;
                     const hasFile = proToolElements.fileInputChecker.files.length > 0;
 
+                    // Prevent starting if no source (playlist or file) is selected
                     if (!selectedPlaylistId && !hasFile) return;
 
-                    isChecking = true; 
-                    proToolElements.startCheckerBtn.textContent = '⏹️ ڕاگرتنی پشکنین'; 
+                    isChecking = true; // Set running flag
+                    proToolElements.startCheckerBtn.textContent = '⏹️ ڕاگرتنی پشکنین'; // Change button text to stop
                     proToolElements.startCheckerBtn.classList.remove('success'); 
-                    proToolElements.startCheckerBtn.classList.add('danger'); 
-                    proToolElements.startCheckerBtn.disabled = false; 
-                    proToolResetCheckerUI(); 
-                    proToolElements.checkerProgressContainer.style.display = 'block'; 
+                    proToolElements.startCheckerBtn.classList.add('danger'); // Make button red for stop action
+                    proToolElements.startCheckerBtn.disabled = false; // Ensure it's enabled
+                    proToolResetCheckerUI(); // Clear previous results
+                    proToolElements.checkerProgressContainer.style.display = 'block'; // Show progress container
                     
+                    // Load channels either from internal playlist or uploaded file
                     if (selectedPlaylistId) {
                         currentCheckingPlaylistId = Number(selectedPlaylistId);
                         const playlist = playlists.find(p => p.id === currentCheckingPlaylistId);
-                        checkerChannels = JSON.parse(JSON.stringify(playlist.channels));
+                        checkerChannels = JSON.parse(JSON.stringify(playlist.channels)); // Deep copy channels
                     } else if (hasFile) {
-                        currentCheckingPlaylistId = null;
+                        currentCheckingPlaylistId = null; // No internal playlist checked
                         const fileContent = await proToolReadFileAsText(proToolElements.fileInputChecker.files[0]); 
-                        checkerChannels = proToolParseM3uContent(fileContent); 
+                        checkerChannels = proToolParseM3uContent(fileContent); // Parse channels from file
                     }
 
-                    await proToolCheckAllChannels(checkerChannels); 
-                    isChecking = false; 
+                    await proToolCheckAllChannels(checkerChannels); // Start the checking process
+                    
+                    isChecking = false; // Reset running flag after completion
+                    // Reset button appearance if it was stopped or finished normally
                     if (proToolElements.startCheckerBtn.textContent.includes('ڕاگرتن')) { 
                         proToolElements.startCheckerBtn.textContent = '🔬 دەستپێکردنی پشکنین'; 
                         proToolElements.startCheckerBtn.classList.remove('danger'); 
@@ -1047,87 +1725,164 @@
                     } 
                 });
                 
+                // Update internal playlist with checked channels
                 proToolElements.updateInternalPlaylistBtn.addEventListener('click', () => {
-                    if (!currentCheckingPlaylistId) return;
+                    if (!currentCheckingPlaylistId) return; // Should not happen if button is shown
                     const playlistToUpdate = playlists.find(p => p.id === currentCheckingPlaylistId);
                     if (!playlistToUpdate) {
                         showToast('لیستەکە نەدۆزرایەوە!', 'error');
                         return;
                     }
+                    // Filter channels that are 'Working' or 'CORS'
                     const survivingChannels = checkerChannels.filter(ch => ch.status === 'Working' || ch.status === 'CORS');
-                    playlistToUpdate.channels = survivingChannels;
-                    saveAndRenderPlaylists();
+                    playlistToUpdate.channels = survivingChannels; // Update the playlist's channels
+                    saveAndRenderPlaylists(); // Save changes and re-render playlists
                     showToast(`لیستی "${playlistToUpdate.name}" نوێکرایەوە. کەناڵە کاراکان و ئەوانەی هەڵەی CORSیان هەبوو مانەوە.`, 'success');
-                    proToolElements.updateInternalPlaylistBtn.style.display = 'none';
+                    proToolElements.updateInternalPlaylistBtn.style.display = 'none'; // Hide button after update
                 });
 
-                proToolElements.toggleSettingsBtn.addEventListener('click', () => { proToolElements.settingsPanel.style.display = proToolElements.settingsPanel.style.display === 'block' ? 'none' : 'block'; });
+                // Toggle visibility of the settings panel
+                proToolElements.toggleSettingsBtn.addEventListener('click', () => { 
+                    proToolElements.settingsPanel.style.display = proToolElements.settingsPanel.style.display === 'block' ? 'none' : 'block'; 
+                });
+                // Save settings button
                 proToolElements.saveSettingsBtn.addEventListener('click', proToolSaveSettings);
+                // Reset settings button
                 proToolElements.resetSettingsBtn.addEventListener('click', proToolResetSettings);
+                
+                // Event delegation for handling clicks within the settings container (group deletion, keyword deletion/addition)
                 proToolElements.settingsContainer.addEventListener('click', e => {
                     const target = e.target;
-                    if (target.classList.contains('delete-group')) { const groupName = target.dataset.group; if (confirm(`ئایا دڵنیایت لە سڕینەوەی گرووپی "${groupName}"؟`)) { delete appSettings.categories[groupName]; appSettings.checkOrder = appSettings.checkOrder.filter(g => g !== groupName); if (appSettings.defaultGroup === groupName) { appSettings.defaultGroup = appSettings.checkOrder[0] || ''; } proToolRenderSettingsUI(); } }
-                    if (target.classList.contains('delete-keyword')) { const { group, keyword } = target.dataset; appSettings.categories[group] = appSettings.categories[group].filter(kw => kw !== keyword); proToolRenderSettingsUI(); }
-                    if (target.classList.contains('add-keyword-btn')) { const groupName = target.dataset.group; const input = target.previousElementSibling; const newKeyword = input.value.trim(); if (newKeyword && !appSettings.categories[groupName].includes(newKeyword)) { appSettings.categories[groupName].push(newKeyword); input.value = ''; proToolRenderSettingsUI(); } }
+                    // Delete group
+                    if (target.classList.contains('delete-group')) { 
+                        const groupName = target.dataset.group; 
+                        if (confirm(`ئایا دڵنیایت لە سڕینەوەی گرووپی "${groupName}"؟`)) { 
+                            delete appSettings.categories[groupName]; // Remove group from categories
+                            appSettings.checkOrder = appSettings.checkOrder.filter(g => g !== groupName); // Remove from check order
+                            // If deleted group was the default, reset default to the first available group
+                            if (appSettings.defaultGroup === groupName) { 
+                                appSettings.defaultGroup = appSettings.checkOrder[0] || ''; 
+                            } 
+                            proToolRenderSettingsUI(); // Re-render UI
+                        } 
+                    }
+                    // Delete keyword
+                    if (target.classList.contains('delete-keyword')) { 
+                        const { group, keyword } = target.dataset; 
+                        appSettings.categories[group] = appSettings.categories[group].filter(kw => kw !== keyword); // Remove keyword
+                        proToolRenderSettingsUI(); // Re-render UI
+                    }
+                    // Add keyword
+                    if (target.classList.contains('add-keyword-btn')) { 
+                        const groupName = target.dataset.group; 
+                        const input = target.previousElementSibling; // Get the associated input field
+                        const newKeyword = input.value.trim(); 
+                        // Add keyword if it's not empty and not already present
+                        if (newKeyword && !appSettings.categories[groupName].includes(newKeyword)) { 
+                            appSettings.categories[groupName].push(newKeyword); 
+                            input.value = ''; // Clear input field
+                            proToolRenderSettingsUI(); // Re-render UI
+                        } else {
+                            showToast('کلیلەوشەکە بەتاڵە یان پێشتر بەکارهاتووە.', 'error');
+                        }
+                    }
                 });
-                proToolElements.addNewGroupBtn.addEventListener('click', () => { const groupName = proToolElements.newGroupName.value.trim(); if (groupName && !appSettings.categories[groupName]) { appSettings.categories[groupName] = []; appSettings.checkOrder.push(groupName); proToolElements.newGroupName.value = ''; proToolRenderSettingsUI(); } else { showToast('ناوی گرووپەکە بەتاڵە یان پێشتر بەکارهاتووە.', 'error'); } });
-                proToolElements.resultListDiv.addEventListener('click', e => { const resultItem = e.target.closest('.result-item'); if (!resultItem) return; if (e.target.closest('.download-single')) return; const preview = resultItem.querySelector('.channel-preview'); if (preview.style.maxHeight && preview.style.maxHeight !== '0px') { preview.style.maxHeight = '0px'; preview.style.padding = '0 15px'; } else { preview.style.padding = '15px 15px 5px 15px'; preview.style.maxHeight = preview.scrollHeight + 'px'; } });
+                
+                // Add new group handler
+                proToolElements.addNewGroupBtn.addEventListener('click', () => { 
+                    const groupName = proToolElements.newGroupName.value.trim(); 
+                    // Add group if name is valid and doesn't exist
+                    if (groupName && !appSettings.categories[groupName]) { 
+                        appSettings.categories[groupName] = []; // Initialize with empty keywords
+                        appSettings.checkOrder.push(groupName); // Add to check order
+                        proToolElements.newGroupName.value = ''; // Clear input
+                        proToolRenderSettingsUI(); // Re-render UI
+                    } else {
+                        showToast('ناوی گرووپەکە بەتاڵە یان پێشتر بەکارهاتووە.', 'error'); 
+                    } 
+                });
+                
+                // Toggle preview for result items
+                proToolElements.resultListDiv.addEventListener('click', e => { 
+                    const resultItem = e.target.closest('.result-item'); 
+                    if (!resultItem) return; // Ignore clicks not on result items
+                    // If click is on a download button, ignore it for preview toggle
+                    if (e.target.closest('.download-single')) return; 
+                    
+                    const preview = resultItem.querySelector('.channel-preview'); 
+                    // Toggle max-height to show/hide preview
+                    if (preview.style.maxHeight && preview.style.maxHeight !== '0px') { 
+                        preview.style.maxHeight = '0px'; 
+                        preview.style.padding = '0 15px'; // Collapse padding
+                    } else { 
+                        preview.style.padding = '15px 15px 5px 15px'; // Add padding before expanding
+                        preview.style.maxHeight = preview.scrollHeight + 'px'; // Expand to content height
+                    } 
+                });
             }
             
             // =================================================================
             // ========================= VIDEO PLAYER LOGIC ====================
             // =================================================================
+            
+            // Close the video player modal and clean up HLS instance
             function closePlayer() {
                 DOMElements.videoPlayerModal.classList.add('hidden');
                 DOMElements.playerLoader.style.display = 'none';
                 if (hlsInstance) {
-                    hlsInstance.destroy();
+                    hlsInstance.destroy(); // Destroy HLS instance to release resources
                     hlsInstance = null;
                 }
-                DOMElements.videoPlayer.pause();
-                DOMElements.videoPlayer.removeAttribute('src'); 
-                DOMElements.videoPlayer.load();
+                DOMElements.videoPlayer.pause(); // Pause video playback
+                DOMElements.videoPlayer.removeAttribute('src'); // Remove video source
+                DOMElements.videoPlayer.load(); // Reload the player element
             }
             
+            // Play a channel in the video player modal
             function playChannel(channelUrl) {
                 if (!channelUrl) {
                     showToast('لینکی کەناڵ بەردەست نییە!', 'error', 2000);
                     return;
                 }
-                DOMElements.videoPlayerModal.classList.remove('hidden');
-                DOMElements.playerLoader.style.display = 'block';
+                DOMElements.videoPlayerModal.classList.remove('hidden'); // Show the modal
+                DOMElements.playerLoader.style.display = 'block'; // Show loading indicator
 
-                if (hlsInstance) { hlsInstance.destroy(); }
+                if (hlsInstance) { hlsInstance.destroy(); } // Destroy previous instance if any
                 const video = DOMElements.videoPlayer;
 
+                // Check if the URL is for an HLS stream (.m3u8)
                 if (channelUrl.endsWith('.m3u8')) {
-                    if (Hls.isSupported()) {
+                    if (Hls.isSupported()) { // If HLS is supported by the browser
                         hlsInstance = new Hls();
-                        hlsInstance.loadSource(channelUrl);
-                        hlsInstance.attachMedia(video);
+                        hlsInstance.loadSource(channelUrl); // Load the HLS stream
+                        hlsInstance.attachMedia(video); // Attach to the video element
+                        // Handle HLS errors
                         hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-                            if (data.fatal) {
+                            if (data.fatal) { // If it's a fatal error
                                 showToast('نەتوانرا کەناڵەکە کارپێبکرێت.', 'error', 2000);
-                                closePlayer();
+                                closePlayer(); // Close player on fatal error
                             }
                         });
-                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    } else if (video.canPlayType('application/vnd.apple.mpegurl')) { // Fallback for Safari
                         video.src = channelUrl;
-                    } else {
+                    } else { // If HLS is not supported at all
                         showToast('وێبگەڕەکەت پشتگیری HLS ناکات.', 'error', 2000);
                         closePlayer();
                     }
-                } else {
+                } else { // For non-HLS streams (e.g., direct video URLs)
                     video.src = channelUrl;
                 }
             }
 
+            // Event handler for video player 'playing' event
             DOMElements.videoPlayer.addEventListener('playing', () => {
-                DOMElements.playerLoader.style.display = 'none';
+                DOMElements.playerLoader.style.display = 'none'; // Hide loader when video starts playing
             });
             
+            // Event handler for video player errors
             DOMElements.videoPlayer.addEventListener('error', (e) => {
-                if (DOMElements.videoPlayer.getAttribute('src')) { // Only show error if there was a source
+                // Check if a source was actually set to avoid showing error on initial load
+                if (DOMElements.videoPlayer.getAttribute('src')) { 
                     showToast('نەتوانرا کەناڵەکە کارپێبکرێت.', 'error', 2000);
                     closePlayer();
                 }
@@ -1136,130 +1891,190 @@
             // =================================================================
             // ========================= MAIN APP INIT =========================
             // =================================================================
+            
             function initializeApp() {
-                handleAuthRedirect();
-                updateDropboxUI();
-                loadPlaylists();
-                renderPlaylists();
-                initializeProTool();
+                handleAuthRedirect(); // Check if redirected from Dropbox authentication
+                updateDropboxUI(); // Update UI based on Dropbox token status
+                loadPlaylists(); // Load existing playlists from localStorage
+                renderPlaylists(); // Render the list of playlists on the home screen
+                initializeProTool(); // Initialize all Pro Tool features
 
+                // --- Event Listeners for Dropbox ---
                 DOMElements.dropboxConnectBtn.addEventListener('click', connectToDropbox);
                 DOMElements.dropboxDisconnectBtn.addEventListener('click', disconnectFromDropbox);
+                
+                // Event listeners for Dropbox fetch/save buttons
+                DOMElements.dropboxFetchBtn.addEventListener('click', fetchFromDropboxModal);
+                DOMElements.dropboxSaveBtn.addEventListener('click', () => {
+                    // Show modal to select playlist and enter Dropbox path for saving
+                    showModal('saveToDropbox', currentPlaylistId); 
+                });
+
+                // --- Modal and Confirmation Dialog Listeners ---
                 DOMElements.modalConfirmBtn.addEventListener('click', handleConfirm);
                 DOMElements.modalCancelBtn.addEventListener('click', hideModal);
+                // Confirmation dialog listeners
                 DOMElements.confirmOkBtn.addEventListener('click', () => { if (confirmCallback) confirmCallback(); hideConfirmModal(); });
                 DOMElements.confirmCancelBtn.addEventListener('click', hideConfirmModal);
                 
-                DOMElements.addPlaylistBtn.addEventListener('click', () => showModal('addPlaylist'));
-                DOMElements.importPlaylistBtn.addEventListener('click', () => { const fileInput = document.createElement('input'); fileInput.type = 'file'; fileInput.accept = '.m3u,.m3u8'; fileInput.onchange = e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = event => parseM3u(file.name, event.target.result); reader.readAsText(file); }; fileInput.click(); });
+                // --- Home Screen Actions ---
+                DOMElements.addPlaylistBtn.addEventListener('click', () => showModal('addPlaylist')); // Show modal to add a new playlist
+                DOMElements.importPlaylistBtn.addEventListener('click', () => { // Trigger file input for local import
+                    const fileInput = document.createElement('input'); 
+                    fileInput.type = 'file'; 
+                    fileInput.accept = '.m3u,.m3u8'; // Accept only M3U files
+                    fileInput.onchange = e => { 
+                        const file = e.target.files[0]; 
+                        if (!file) return; 
+                        const reader = new FileReader(); 
+                        reader.onload = event => parseM3u(file.name, event.target.result); // Parse M3U content
+                        reader.readAsText(file); 
+                    }; 
+                    fileInput.click(); // Programmatically click the file input
+                });
                 
-                DOMElements.transferBtn.addEventListener('click', initTransferScreen);
+                // --- Transfer Screen Actions ---
+                DOMElements.transferBtn.addEventListener('click', initTransferScreen); // Navigate to transfer screen
                 
+                // Update transfer list when dropdown selection changes
                 DOMElements.transferSelectLeft.addEventListener('change', (e) => {
                     renderTransferList(e.target.value, DOMElements.transferListLeft, DOMElements.transferSearchLeft.value);
-                    DOMElements.selectAllLeft.checked = false;
+                    DOMElements.selectAllLeft.checked = false; // Uncheck select all
                 });
-
                 DOMElements.transferSelectRight.addEventListener('change', (e) => {
                     renderTransferList(e.target.value, DOMElements.transferListRight, DOMElements.transferSearchRight.value);
-                    DOMElements.selectAllRight.checked = false;
+                    DOMElements.selectAllRight.checked = false; // Uncheck select all
                 });
 
+                // Debounced search input for transfer lists
                 DOMElements.transferSearchLeft.addEventListener('input', debounce(e => {
                     renderTransferList(DOMElements.transferSelectLeft.value, DOMElements.transferListLeft, e.target.value);
                 }, 300));
-                
                 DOMElements.transferSearchRight.addEventListener('input', debounce(e => {
                     renderTransferList(DOMElements.transferSelectRight.value, DOMElements.transferListRight, e.target.value);
                 }, 300));
 
+                // Select all/deselect all checkboxes for transfer lists
                 DOMElements.selectAllLeft.addEventListener('change', (e) => {
                     const isChecked = e.target.checked;
                     DOMElements.transferListLeft.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
                 });
-
                 DOMElements.selectAllRight.addEventListener('change', (e) => {
                     const isChecked = e.target.checked;
                     DOMElements.transferListRight.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
                 });
                 
-                // transferToLeftBtn has fa-arrow-right icon (→), moves from left list to right list
-                DOMElements.transferToLeftBtn.addEventListener('click', () => {
+                // Transfer buttons logic (move channels between lists)
+                DOMElements.transferToLeftBtn.addEventListener('click', () => { // Icon is right arrow (→), moves left to right
                     transferChannels(DOMElements.transferSelectLeft, DOMElements.transferSelectRight, DOMElements.transferListLeft);
                 });
-
-                // transferToRightBtn has fa-arrow-left icon (←), moves from right list to left list
-                DOMElements.transferToRightBtn.addEventListener('click', () => {
+                DOMElements.transferToRightBtn.addEventListener('click', () => { // Icon is left arrow (←), moves right to left
                     transferChannels(DOMElements.transferSelectRight, DOMElements.transferSelectLeft, DOMElements.transferListRight);
                 });
 
+                // --- Pro Tool Screen Navigation ---
                 DOMElements.proToolBtn.addEventListener('click', () => {
-                    populateCheckerDropdown();
-                    showScreen(DOMElements.proToolScreen);
+                    populateCheckerDropdown(); // Populate dropdown for checker tool
+                    showScreen(DOMElements.proToolScreen); // Show pro tool screen
                 });
                 
+                // --- Playlist List Interactions ---
                 DOMElements.playlistList.addEventListener('click', (e) => {
-                    const card = e.target.closest('.item-card'); if (!card) return;
+                    const card = e.target.closest('.item-card'); 
+                    if (!card) return; // Exit if click is not on a playlist card
                     const id = Number(card.dataset.playlistId);
-                    if (e.target.closest('.edit-btn')) { showModal('editPlaylist', id); } 
-                    else if (e.target.closest('.delete-btn')) { 
+                    
+                    if (e.target.closest('.edit-btn')) { // Edit playlist name
+                        showModal('editPlaylist', id); 
+                    } else if (e.target.closest('.delete-btn')) { // Delete playlist
                         const playlist = playlists.find(p => p.id === id);
                         showConfirmModal(`دڵنیایت لە سڕینەوەی لیستی "${playlist.name}"؟`, () => {
-                            playlists = playlists.filter(p => p.id !== id);
-                            saveAndRenderPlaylists();
+                            playlists = playlists.filter(p => p.id !== id); // Remove playlist from array
+                            saveAndRenderPlaylists(); // Save and re-render
                         });
-                    } else if (e.target.closest('[data-action="open"]')) {
+                    } else if (e.target.closest('[data-action="open"]')) { // Open playlist to view channels
                         showScreen(DOMElements.channelsScreen);
-                        renderChannels(id);
+                        renderChannels(id); // Render channels for the selected playlist
                     }
                 });
 
+                // --- Channel List Interactions ---
                 DOMElements.channelListContainer.addEventListener('click', (e) => {
-                    const individualCard = e.target.closest('.item-card');
-                    if (!individualCard) return;
-                    const playlist = playlists.find(p => p.id === currentPlaylistId);
-                    if (!playlist) return;
-                    const channelId = Number(individualCard.dataset.channelId);
-                    const channel = playlist.channels.find(c => c.id === channelId);
-                    if (!channel) return;
+                    const individualCard = e.target.closest('.item-card'); // Target is a channel card
+                    if (!individualCard) return; // Exit if not a channel card
+                    
+                    const playlist = playlists.find(p => p.id === currentPlaylistId); // Get current playlist
+                    if (!playlist) return; // Exit if playlist not found
+                    
+                    const channelId = Number(individualCard.dataset.channelId); // Get channel ID
+                    const channel = playlist.channels.find(c => c.id === channelId); // Get channel object
+                    if (!channel) return; // Exit if channel not found
 
-                    if (e.target.closest('.play-btn')) { playChannel(channel.url); }
-                    else if (e.target.closest('.edit-btn')) { showModal('editChannel', channelId); }
-                    else if (e.target.closest('.delete-btn')) {
+                    if (e.target.closest('.play-btn')) { // Play channel
+                        playChannel(channel.url); 
+                    } else if (e.target.closest('.edit-btn')) { // Edit channel details
+                        showModal('editChannel', channelId); 
+                    } else if (e.target.closest('.delete-btn')) { // Delete channel
+                        // Get currently open groups to restore them after re-rendering
                         const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
-                        playlist.channels = playlist.channels.filter(c => c.id !== channelId);
-                        saveAndRenderChannels(openGroups);
+                        playlist.channels = playlist.channels.filter(c => c.id !== channelId); // Remove channel
+                        saveAndRenderChannels(openGroups); // Save and re-render channels
                     }
                 });
                 
+                // Helper function to go back to home and refresh playlist list
                 const backToHomeAndRefresh = () => {
-                    closePlayer();
-                    renderPlaylists();
-                    showScreen(DOMElements.homeScreen);
+                    closePlayer(); // Ensure player is closed
+                    renderPlaylists(); // Refresh playlist list in case any changes were made
+                    showScreen(DOMElements.homeScreen); // Show home screen
                 };
 
+                // Back button listeners for each screen
                 DOMElements.backToHomeBtn.addEventListener('click', () => {
+                    // If the current playlist has a dropboxPath, attempt auto-save
                     const playlist = playlists.find(p => p.id === currentPlaylistId);
                     if (playlist && playlist.dropboxPath) {
-                        saveToDropbox(currentPlaylistId, playlist.dropboxPath, true);
+                        saveToDropbox(currentPlaylistId, playlist.dropboxPath, true); // Auto-save is true
                     }
                     backToHomeAndRefresh();
                 });
                 DOMElements.backToHomeFromTransferBtn.addEventListener('click', backToHomeAndRefresh);
                 DOMElements.backToHomeFromProToolBtn.addEventListener('click', backToHomeAndRefresh);
                 
+                // Video player close button
                 DOMElements.closePlayerBtn.addEventListener('click', closePlayer);
-                DOMElements.addChannelBtn.addEventListener('click', () => showModal('addChannel'));
-                DOMElements.exportPlaylistBtn.addEventListener('click', () => { const playlist = playlists.find(p => p.id === currentPlaylistId); if (!playlist) return; const m3uContent = generateM3uContent(playlist); const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${playlist.name}.m3u`; document.body.appendChild(a); a.click(); document.body.removeChild(a); });
                 
+                // Add channel button on channel screen
+                DOMElements.addChannelBtn.addEventListener('click', () => showModal('addChannel'));
+                
+                // Export playlist button on channel screen
+                DOMElements.exportPlaylistBtn.addEventListener('click', () => { 
+                    const playlist = playlists.find(p => p.id === currentPlaylistId); 
+                    if (!playlist) return; 
+                    const m3uContent = generateM3uContent(playlist); 
+                    // Create a Blob and download link for the M3U file
+                    const blob = new Blob([m3uContent], { type: 'audio/x-mpegurl;charset=utf-8' }); 
+                    const url = URL.createObjectURL(blob); 
+                    const a = document.createElement('a'); 
+                    a.href = url; 
+                    a.download = `${playlist.name}.m3u`; 
+                    document.body.appendChild(a); 
+                    a.click(); 
+                    document.body.removeChild(a); // Clean up the temporary link
+                });
+                
+                // Debounced playlist search input
                 DOMElements.playlistSearch.addEventListener('input', debounce(e => renderPlaylists(e.target.value), 300));
+                
+                // Debounced channel search input
                 DOMElements.channelSearch.addEventListener('input', debounce(e => {
+                    // Get currently open groups to maintain their state after search
                     const openGroups = [...DOMElements.channelListContainer.querySelectorAll('details[open] .group-delete-btn')].map(btn => btn.dataset.groupTitle);
                     renderChannels(currentPlaylistId, e.target.value, openGroups);
                 }, 300));
             }
 
-            initializeApp();
+            initializeApp(); // Start the application
         });
     </script>
 </body>
