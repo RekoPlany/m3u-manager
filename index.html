@@ -204,7 +204,7 @@
             <header class="main-header">
                 <div class="logo-title"><i class="fas fa-layer-group"></i><h1>M3U Manager Pro</h1></div>
                 <div class="main-actions">
-                    <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span>پەیوەست بوون بە دڕۆپبۆکس</span></button>
+                    <button id="dropbox-connect-btn" class="btn" style="background: var(--dropbox-color);"><i class="fab fa-dropbox"></i> <span>پەیوەستبوون بە درۆپبۆکس</span></button>
                     <button id="pro-tool-btn" class="btn primary"><i class="fas fa-cogs"></i></button>
                     <button id="transfer-btn" class="btn primary"><i class="fas fa-exchange-alt"></i></button>
                     <button id="import-playlist-btn" class="btn primary"><i class="fas fa-upload"></i></button>
@@ -443,7 +443,7 @@
                 try {
                     const errorHeader = response.headers.get("dropbox-api-result");
                     if (errorHeader) {
-                        const errorResult = JSON.parse(errorHeader);
+                        const errorResult = JSON.parse(errorHeader); // Corrected: Use JSON.parse
                         const errorTag = errorResult.error?.['.tag'];
                         if (errorTag === 'path' && errorResult.error.path?.['.tag'] === 'not_found') {
                            throw new Error("فایل یان فۆڵدەر لە درۆپبۆکس نەدۆزرایەوە.");
@@ -475,17 +475,24 @@
             async function listDropboxFiles() {
                 if (!dropboxToken) throw new Error("تۆکنی درۆپبۆکس بوونی نییە.");
                 try {
+                    // The /files/list_folder endpoint lists contents of a folder. 
+                    // If you want to list only .m3u/.m3u8 files, you might need to filter on the client-side or use search.
+                    // For simplicity, let's list files in the root folder and filter them.
                     const response = await fetch('https://api.dropboxapi.com/2/files/list_folder', {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${dropboxToken}`,
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ path: '' }) // List files in the root folder
+                        body: JSON.stringify({ path: '' }) // List files in the root folder ('')
                     });
                     if (!response.ok) await handleDropboxError(response);
                     const data = await response.json();
-                    const m3uFiles = data.entries.filter(entry => entry.name.toLowerCase().endsWith('.m3u') || entry.name.toLowerCase().endsWith('.m3u8'));
+                    
+                    // Filter for files that end with .m3u or .m3u8
+                    const m3uFiles = data.entries.filter(entry => 
+                        entry.name.toLowerCase().endsWith('.m3u') || entry.name.toLowerCase().endsWith('.m3u8')
+                    );
                     return m3uFiles;
                 } catch (error) {
                     showToast(error.message, 'error');
@@ -508,6 +515,7 @@
                         return;
                     }
                     DOMElements.modalConfirmBtn.disabled = false;
+                    // Create options for the select element, using path_display for the value
                     let options = files.map(file => `<option value="${file.path_display}">${file.name}</option>`).join('');
                     DOMElements.modalContent.innerHTML = `
                         <div class="form-group">
@@ -522,20 +530,21 @@
 
             async function downloadFromDropbox(filePath) {
                  if (!dropboxToken) throw new Error("تۆکنی درۆپبۆکس بوونی نییە.");
-                 if (!filePath || !filePath.startsWith('/')) throw new Error("ناوی فایل نادروستە.");
+                 // Ensure filePath is valid (starts with a slash)
+                 if (!filePath || !filePath.startsWith('/')) throw new Error("ناوی فایل نادروستە. پێویستە بە / دەست پێبکات.");
 
                 try {
                     const response = await fetch('https://api.dropboxapi.com/2/files/download', {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${dropboxToken}`,
-                            'Dropbox-API-Arg': JSON.stringify({ path: filePath })
+                            'Dropbox-API-Arg': JSON.stringify({ path: filePath }) // Specify the file path to download
                         }
                     });
                     if (!response.ok) await handleDropboxError(response);
                     const content = await response.text();
-                    const fileName = filePath.split('/').pop();
-                    parseM3u(fileName, content, filePath); // Pass filePath to associate it with the playlist
+                    const fileName = filePath.split('/').pop(); // Get the filename from the path
+                    parseM3u(fileName, content, filePath); // Parse the downloaded content and associate with filePath
                     showToast(`فایلی "${fileName}" لە درۆپبۆکس هێنرا.`, 'success');
                 } catch (error) {
                     showToast(error.message, 'error');
@@ -577,7 +586,7 @@
                     });
                     if (!response.ok) await handleDropboxError(response);
                     const result = await response.json();
-                    if (result && result.id) { // Check if upload was successful
+                    if (result && result.id) { // Check if upload was successful (result contains file metadata like id)
                          if (!isAutoSave) showToast(`"${playlist.name}" لە ${filePath} پاشەکەوت کرا`, 'success');
                          // Update playlist's dropboxPath if it was newly saved or changed
                          playlist.dropboxPath = filePath; 
@@ -594,15 +603,18 @@
                 if (dropboxToken) {
                     DOMElements.dropboxConnectBtn.style.display = 'none';
                     DOMElements.dropboxControls.style.display = 'flex';
-                    DOMElements.dropboxConnectBtn.querySelector('span').textContent = 'پەیوەست کراوە';
+                    // Update button text to indicate connection status
+                    DOMElements.dropboxConnectBtn.querySelector('span').textContent = 'پەیوەست کراوە'; 
                 } else {
                     DOMElements.dropboxConnectBtn.style.display = 'inline-flex';
                     DOMElements.dropboxControls.style.display = 'none';
-                    DOMElements.dropboxConnectBtn.querySelector('span').textContent = '';
+                    // Update button text to prompt connection
+                    DOMElements.dropboxConnectBtn.querySelector('span').textContent = 'پەیوەستبوون بە درۆپبۆکس'; 
                 }
             }
 
             function handleAuthRedirect() {
+                // Check if the current URL hash contains Dropbox OAuth tokens
                 const params = new URLSearchParams(window.location.hash.substring(1));
                 const token = params.get('access_token');
                 if (token) {
@@ -772,11 +784,12 @@
             function handleConfirm() {
                 let shouldHideModal = true;
                 if (currentMode === 'saveToDropbox') {
-                    const selectedPlaylistId = document.getElementById('playlist-select-dropbox').value; // Needs to be implemented
-                    const dropboxFileNameInput = document.getElementById('dropbox-filename'); // Needs to be implemented
-                    const dropboxFileName = dropboxFileNameInput ? dropboxFileNameInput.value : null;
+                    const selectedPlaylistId = document.getElementById('file-select-dropbox')?.value; // Get selected playlist ID from modal
+                    const dropboxFileNameInput = document.getElementById('dropbox-filename'); // Get filename input
+                    const dropboxFileName = dropboxFileNameInput ? dropboxFileNameInput.value.trim() : null;
                     
                     if (selectedPlaylistId && dropboxFileName && dropboxFileName.startsWith('/')) {
+                        // Call saveToDropbox with the playlist ID and the Dropbox path
                         saveToDropbox(Number(selectedPlaylistId), dropboxFileName);
                     } else {
                         showToast("ناوی فایل نادروستە یان لیستی دیارینەکراوە. پێویستە بە / دەست پێبکات.", "error");
@@ -785,9 +798,9 @@
                 } else if (currentMode === 'fetchFromDropbox') {
                     const selectElement = document.getElementById('file-select-dropbox');
                     if (selectElement) {
-                        const selectedFilePath = selectElement.value;
+                        const selectedFilePath = selectElement.value; // Get the selected file path from modal
                         if (selectedFilePath) {
-                            downloadFromDropbox(selectedFilePath);
+                            downloadFromDropbox(selectedFilePath); // Call download function
                         } else {
                             showToast("تکایە فایلێک هەڵبژێرە.", "error");
                             shouldHideModal = false;
@@ -797,7 +810,7 @@
                     const nameInput = document.getElementById('playlist-name');
                     const name = nameInput ? nameInput.value.trim() : ''; 
                     if (name) { 
-                        playlists.push({ id: Date.now(), name: name, channels: [], dropboxPath: null }); 
+                        playlists.push({ id: Date.now(), name: name, channels: [],dropboxPath: null }); 
                         saveAndRenderPlaylists(); 
                     } else {
                         showToast("ناوی لیستەکە بەتاڵە.", "error");
@@ -813,7 +826,7 @@
                         if (playlist.dropboxPath) {
                            // Assuming we want to keep the same directory, just change the filename part
                            const dir = playlist.dropboxPath.substring(0, playlist.dropboxPath.lastIndexOf('/') + 1);
-                           playlist.dropboxPath = `${dir}${name}.m3u`;
+                           playlist.dropboxPath = `${dir}${name}.m3u`; // Update path with new name
                         }
                         saveAndRenderPlaylists(); 
                     } else {
@@ -849,7 +862,7 @@
                         showToast("ناوی کەناڵ و URL پێویستن.", "error");
                         shouldHideModal = false;
                     }
-                } 
+                }
                 
                 if (shouldHideModal) {
                     hideModal();
@@ -921,17 +934,19 @@
                          formHtml = '<p class="text-center" style="color: var(--danger-color);">لیستەکە نەدۆزراوە.</p>';
                          DOMElements.modalConfirmBtn.disabled = true;
                      } else {
+                         // Default path suggestion based on playlist name
+                         const defaultPath = `/M3U/${playlist.name}.m3u`; 
                          formHtml = `
                             <div class="form-group">
                                 <label for="file-select-dropbox">هەڵبژێرە بۆ پاشەکەوتکردن:</label>
                                 <select id="file-select-dropbox">
-                                    <option value="${playlist.dropboxPath || `/M3U/${playlist.name}.m3u`}" selected>${playlist.dropboxPath || `/M3U/${playlist.name}.m3u`}</option>
+                                    <option value="${playlist.dropboxPath || defaultPath}" selected>${playlist.dropboxPath || defaultPath}</option>
                                 </select>
                                 <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 10px;">ڕێگاکە دەستکاری بکە ئەگەر دەتەوێت لە جێگایەکی تر پاشەکەوت بکەیت. دەبێت بە '/' دەست پێبکات.</p>
                             </div>
                             <div class="form-group">
                                 <label for="dropbox-filename">ناوی فایل:</label>
-                                <input type="text" id="dropbox-filename" value="${playlist.dropboxPath || `/M3U/${playlist.name}.m3u`}" placeholder="/Path/To/YourList.m3u">
+                                <input type="text" id="dropbox-filename" value="${playlist.dropboxPath || defaultPath}" placeholder="/Path/To/YourList.m3u">
                             </div>
                          `;
                      }
@@ -1907,6 +1922,7 @@
                 DOMElements.dropboxFetchBtn.addEventListener('click', fetchFromDropboxModal);
                 DOMElements.dropboxSaveBtn.addEventListener('click', () => {
                     // Show modal to select playlist and enter Dropbox path for saving
+                    // Pass the currentPlaylistId if we are currently viewing channels, otherwise null
                     showModal('saveToDropbox', currentPlaylistId); 
                 });
 
